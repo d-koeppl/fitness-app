@@ -1,0 +1,12 @@
+rules_version = '2';
+
+// No client reads or writes Firestore directly. The app goes through the
+// `api` Cloud Function, whose service account bypasses these rules — so
+// the maths stays server-side and one tested code path owns every write.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
