@@ -151,6 +151,9 @@ void main() {
     final sent = <Sent>[];
     final push = FakePush(permissionNow: PushPermission.granted);
     await pumpDashboard(tester, fakeApi({...fixtures(), 'PUT /push/devices': registered}, sent: sent), push: push);
+    // On another tab, so the snackbar offers to open the report.
+    await tester.tap(find.text('Health'));
+    await tester.pumpAndSettle();
     final reads = requests(sent, 'GET', '/reports/latest').length;
 
     push.arrivalsIn.add(PushArrival(title: 'Fitness report ready', body: 'Legs are fresh.'));
@@ -159,6 +162,15 @@ void main() {
 
     expect(find.text('Fitness report ready: Legs are fresh.'), findsOneWidget);
     expect(requests(sent, 'GET', '/reports/latest').length, reads + 1);
+
+    expect(find.text('Open'), findsOneWidget);
+
+    // It goes away by itself, Open button or not; its four-second timer
+    // starts once it has slid in.
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+    expect(find.text('Fitness report ready: Legs are fresh.'), findsNothing);
   });
 
   testWidgets('signing out drops this device first', (tester) async {

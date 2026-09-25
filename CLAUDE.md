@@ -82,7 +82,11 @@ cd app && flutter run -d chrome --dart-define=API_BASE_URL=http://127.0.0.1:5001
 The emulated API reads `functions/.env.local` (copy `functions/.env.example`)
 and only trusts Auth-emulator tokens; the deployed one reads
 `functions/.env.fitness-75c22` and only trusts real ones. Point both
-dart-defines at the emulators or neither. The functions emulator needs
+dart-defines at the emulators or neither. On the Android emulator the
+host is `10.0.2.2` (`API_BASE_URL=http://10.0.2.2:5001/...`,
+`AUTH_EMULATOR_HOST=10.0.2.2`); debug builds allow plain HTTP to it
+(`app/android/app/src/debug/res/xml/network_security_config.xml`). An
+account signs in only if it is in `ALLOWED_EMAILS` in `.env.local`. The functions emulator needs
 `functions/.secret.local` with a non-empty `GEMINI_API_KEY` (a dummy is
 fine; New report then answers 502), or it asks Secret Manager on every
 request. Seed its Firestore with `tools/migrate/import_firestore.py`.
