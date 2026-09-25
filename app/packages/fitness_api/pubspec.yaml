@@ -1,0 +1,17 @@
+# Written by hand, not generated (it is in .openapi-generator-ignore): the
+# generator's own pins an SDK too old for the code json_serializable emits.
+name: fitness_api
+version: 1.0.0
+description: Generated client for the Fitness API. Do not edit lib/; run tool/generate_api_client.sh.
+publish_to: none
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  dio: ^5.7.0
+  json_annotation: ^4.9.0
+
+dev_dependencies:
+  build_runner: ^2.4.0
+  json_serializable: ^6.9.3

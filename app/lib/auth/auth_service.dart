@@ -16,6 +16,9 @@ abstract class AuthService {
   /// A current Firebase ID token for the API, refreshed by Firebase when it
   /// has expired; null when signed out.
   Future<String?> idToken();
+
+  /// The signed-in Google account's address, for the avatar and its menu.
+  String? get email;
 }
 
 /// The project's *web* OAuth client (client type 3 in google-services.json),
@@ -68,4 +71,7 @@ class FirebaseAuthService implements AuthService {
 
   @override
   Future<String?> idToken() async => _auth.currentUser?.getIdToken();
+
+  @override
+  String? get email => _auth.currentUser?.email;
 }

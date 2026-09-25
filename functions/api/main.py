@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.routing import APIRoute
 from pydantic import BaseModel
 
 from api.auth import User, current_user, require_user
@@ -23,6 +24,16 @@ from api.routers import reports as reports_router
 from api.routers import sync as sync_router
 from api.routers import training as training_router
 
+
+def operation_id(route: APIRoute) -> str:
+    """The handler's name in camelCase: `list_daily_health` becomes
+    `listDailyHealth`, which is the method name in the generated Dart
+    client. FastAPI's default glues the path and method on as well, and
+    would rename the Dart method whenever a path changed."""
+    head, *rest = route.name.split("_")
+    return head + "".join(word.capitalize() for word in rest)
+
+
 # Every route requires a signed-in, allowlisted user unless its path is in
 # api.auth.PUBLIC_PATHS. The interactive docs and the schema URL are off:
 # the schema is exported to openapi/openapi.json with app.openapi(), which
@@ -33,6 +44,7 @@ app = FastAPI(
     openapi_url=None,
     docs_url=None,
     redoc_url=None,
+    generate_unique_id_function=operation_id,
 )
 
 # The ID token travels in an Authorization header, not a cookie, so
@@ -71,14 +83,14 @@ class Me(BaseModel):
     email: str
 
 
-@app.get("/healthz", tags=["meta"], response_model=Health, operation_id="getHealth")
-def healthz() -> Health:
+@app.get("/healthz", tags=["meta"], response_model=Health)
+def get_health() -> Health:
     """Liveness probe. Named /healthz, not /health, so it isn't mistaken for
     a sibling of the /health-data routes."""
     return Health(status="ok")
 
 
-@app.get("/me", tags=["meta"], response_model=Me, operation_id="getMe")
-def me(user: User = Depends(current_user)) -> Me:
+@app.get("/me", tags=["meta"], response_model=Me)
+def get_me(user: User = Depends(current_user)) -> Me:
     """Who the API thinks is calling — the app's check that sign-in worked."""
     return Me(uid=user.uid, email=user.email)

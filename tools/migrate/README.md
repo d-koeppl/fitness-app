@@ -4,8 +4,8 @@ Moves the fitness-dashboard data into the Firestore layout of
 [ADR-031](../../docs/adr/031-firestore-layout.md), and proves nothing
 changed on the way by asking the old and the new API the same questions.
 
-Run it as a dry run against the emulator first, and against production
-only at the cut-over (phase 8), from a fresh dump.
+Run it as a dry run against the emulator first, then against production
+from a fresh dump.
 
 All dumps and snapshots go in `C:\Coding\fitness\dumps\` — outside both
 repositories. They hold the whole health history and the encrypted OAuth
@@ -40,7 +40,9 @@ firebase emulators:start --only firestore --project demo-fitness-migration
 FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 python tools/migrate/import_firestore.py dumps/prod-YYYY-MM-DD-json --project demo-fitness-migration
 ```
 
-Into production, at the cut-over only, into an empty database:
+Into production. First done on 2026-09-25, before phase 3's deploy, so
+the hourly sync writes on top of real history and finds the migrated
+Google grants; run again from a fresh dump at the cut-over (phase 8):
 
 ```bash
 python tools/migrate/import_firestore.py dumps/prod-YYYY-MM-DD-json --project fitness-75c22 --production

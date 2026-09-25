@@ -1299,7 +1299,7 @@
   "paths": {
     "/calendar/events": {
       "get": {
-        "operationId": "list_upcoming_events_calendar_events_get",
+        "operationId": "listUpcomingEvents",
         "parameters": [
           {
             "in": "query",
@@ -1320,7 +1320,7 @@
                   "items": {
                     "$ref": "#/components/schemas/CalendarEventOut"
                   },
-                  "title": "Response List Upcoming Events Calendar Events Get",
+                  "title": "Response Listupcomingevents",
                   "type": "array"
                 }
               }
@@ -1352,7 +1352,7 @@
     "/drinks": {
       "get": {
         "description": "The drinks logged since the last daily report claimed them.",
-        "operationId": "get_counter_drinks_get",
+        "operationId": "getCounter",
         "responses": {
           "200": {
             "content": {
@@ -1377,7 +1377,7 @@
       },
       "post": {
         "description": "Plus one \u2014 one 0.5 L beer.",
-        "operationId": "add_drink_drinks_post",
+        "operationId": "addDrink",
         "responses": {
           "201": {
             "content": {
@@ -1402,7 +1402,7 @@
       },
       "put": {
         "description": "Set the counter to a number typed straight into the tile \u2014 four taps\nis fine, eleven is not.\n\nIdempotent, unlike the two above: it says what the counter should read,\nso a replayed request cannot add a beer. Only the drinks no report has\nclaimed are moved; the difference is added or removed at the newest end.",
-        "operationId": "set_counter_drinks_put",
+        "operationId": "setCounter",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1449,7 +1449,7 @@
     "/drinks/days": {
       "get": {
         "description": "The last `days` local days ending today, newest first, empty ones\nincluded \u2014 the Beer sheet's chart and its editable day rows read the\nsame list.\n\nToday is in it so the chart can plot it, and comes back\n`editable: false` because that evening belongs to the counter.",
-        "operationId": "list_days_drinks_days_get",
+        "operationId": "listDays",
         "parameters": [
           {
             "in": "query",
@@ -1472,7 +1472,7 @@
                   "items": {
                     "$ref": "#/components/schemas/DrinkDayOut"
                   },
-                  "title": "Response List Days Drinks Days Get",
+                  "title": "Response Listdays",
                   "type": "array"
                 }
               }
@@ -1504,7 +1504,7 @@
     "/drinks/days/{day}": {
       "get": {
         "description": "One day, however far back \u2014 what the date picker reads when a date is\nchosen, so the field opens on the number already stored rather than on a\nguess (ADR-024). A day with no beers answers zero, not 404.",
-        "operationId": "get_day_drinks_days__day__get",
+        "operationId": "getDay",
         "parameters": [
           {
             "in": "path",
@@ -1551,7 +1551,7 @@
       },
       "put": {
         "description": "Fill in (or correct) the beers of one earlier day \u2014 the round nobody\nremembered to tap in on Saturday (ADR-023).\n\nIdempotent: it carries the number that day should read, so a retry\nlands on the same history. The rows it writes are off the counter from\nbirth, so this cannot move the stepper upwards or feed tonight's report\na beer from last week \u2014 it lands on the day it names, which is where\nlater analysis reads it.\n\nAny past date is accepted, however old \u2014 the picker that sends it is a\ncalendar, not a typed number (ADR-024). 422, with the reason in\n`detail`, for the two the service refuses: today or later (that is the\ncounter's job), and a count below what a report already counted on that\nday. A count over 99 is refused a step earlier, by `DrinkCountIn`, the\nsame slipped-finger guard the counter has.",
-        "operationId": "set_day_drinks_days__day__put",
+        "operationId": "setDay",
         "parameters": [
           {
             "in": "path",
@@ -1610,7 +1610,7 @@
     "/drinks/last": {
       "delete": {
         "description": "Minus one: take back the most recent tap that no report has counted\nyet. A no-op at zero \u2014 the count that comes back says so, and a 404 for\na button the user pressed once too often would be noise.",
-        "operationId": "undo_drink_drinks_last_delete",
+        "operationId": "undoDrink",
         "responses": {
           "200": {
             "content": {
@@ -1637,7 +1637,7 @@
     "/health-data/daily": {
       "get": {
         "description": "The newest `limit` stored days, newest first. Read a month at a time\nfrom the newest, so a year of history costs about a dozen reads.",
-        "operationId": "list_daily_health_health_data_daily_get",
+        "operationId": "listDailyHealth",
         "parameters": [
           {
             "in": "query",
@@ -1658,7 +1658,7 @@
                   "items": {
                     "$ref": "#/components/schemas/DailyHealthOut"
                   },
-                  "title": "Response List Daily Health Health Data Daily Get",
+                  "title": "Response Listdailyhealth",
                   "type": "array"
                 }
               }
@@ -1690,7 +1690,7 @@
     "/health-data/exercises": {
       "get": {
         "description": "The most recently tracked workouts, newest first.",
-        "operationId": "list_exercises_health_data_exercises_get",
+        "operationId": "listExercises",
         "parameters": [
           {
             "in": "query",
@@ -1711,7 +1711,7 @@
                   "items": {
                     "$ref": "#/components/schemas/ExerciseSessionOut"
                   },
-                  "title": "Response List Exercises Health Data Exercises Get",
+                  "title": "Response Listexercises",
                   "type": "array"
                 }
               }
@@ -1743,7 +1743,7 @@
     "/health-data/exercises/{session_id}/heart-rate": {
       "get": {
         "description": "One tracked session's heart rate trace (ADR-020).\n\nIts own request rather than a field on `/exercises`: a trace is a few\nhundred points even after thinning, and the list renders ten sessions\nthat would each be carrying one nobody has opened. The detail sheet\nfetches this when it opens.\n\n404 is \"no such session\" \u2014 a bad id, or one naming a match or training\nthe watch never recorded. A session that exists but has no readings\nanswers 200 with an empty `samples`, which is a different thing and the\nsheet says so.",
-        "operationId": "exercise_heart_rate_health_data_exercises__session_id__heart_rate_get",
+        "operationId": "exerciseHeartRate",
         "parameters": [
           {
             "in": "path",
@@ -1791,7 +1791,7 @@
     "/health-data/latest": {
       "get": {
         "description": "The current weight and VO2 max, whichever day they were last measured\non (ADR-018). Separate from `/daily` because it deliberately reaches past\nthe window `/daily` was asked for: the last weigh-in can be older than\nany range the app shows, and it is still the current weight.",
-        "operationId": "latest_health_measurements_health_data_latest_get",
+        "operationId": "latestHealthMeasurements",
         "responses": {
           "200": {
             "content": {
@@ -1836,7 +1836,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Healthz",
+        "summary": "Get Health",
         "tags": [
           "meta"
         ]
@@ -1845,7 +1845,7 @@
     "/matches": {
       "get": {
         "description": "Newest first, undated rows before all of them \u2014 Postgres'\n`ORDER BY match_date DESC` puts NULLs first, and this keeps its order.",
-        "operationId": "list_matches_matches_get",
+        "operationId": "listMatches",
         "responses": {
           "200": {
             "content": {
@@ -1854,7 +1854,7 @@
                   "items": {
                     "$ref": "#/components/schemas/MatchOut"
                   },
-                  "title": "Response List Matches Matches Get",
+                  "title": "Response Listmatches",
                   "type": "array"
                 }
               }
@@ -1876,7 +1876,7 @@
     "/matches/missing": {
       "get": {
         "description": "Yesterday's calendar fixture if the \u00d6FB log has no game that day,\nelse null. The app shows it as a notice on the Today tab.",
-        "operationId": "missing_yesterday_matches_missing_get",
+        "operationId": "missingYesterday",
         "responses": {
           "200": {
             "content": {
@@ -1890,7 +1890,7 @@
                       "type": "null"
                     }
                   ],
-                  "title": "Response Missing Yesterday Matches Missing Get"
+                  "title": "Response Missingyesterday"
                 }
               }
             },
@@ -1929,7 +1929,7 @@
             "HTTPBearer": []
           }
         ],
-        "summary": "Me",
+        "summary": "Get Me",
         "tags": [
           "meta"
         ]
@@ -1937,7 +1937,7 @@
     },
     "/oauth/google/callback": {
       "get": {
-        "operationId": "callback_oauth_google_callback_get",
+        "operationId": "callback",
         "parameters": [
           {
             "in": "query",
@@ -2024,7 +2024,7 @@
     "/oauth/google/login": {
       "post": {
         "description": "The consent URL for `target`. Signed-in only, like everything but\nthe callback, so only the owner can start a flow.",
-        "operationId": "login_oauth_google_login_post",
+        "operationId": "login",
         "parameters": [
           {
             "in": "query",
@@ -2071,7 +2071,7 @@
     },
     "/oauth/google/status": {
       "get": {
-        "operationId": "status_oauth_google_status_get",
+        "operationId": "status",
         "responses": {
           "200": {
             "content": {
@@ -2097,7 +2097,7 @@
     },
     "/reports/latest": {
       "get": {
-        "operationId": "get_latest_report_reports_latest_get",
+        "operationId": "getLatestReport",
         "responses": {
           "200": {
             "content": {
@@ -2124,7 +2124,7 @@
     "/sync": {
       "post": {
         "description": "Google Health, heart rate and the calendar, once, synchronously \u2014 the\ncaller is watching a spinner. Not the \u00d6FB scrape: that stays nightly.\n\nNo Gemini call and no report, so no budget to check. A dead source does\nnot fail the request; it comes back as \"failed: \u2026\" in `sources`, and the\napp still re-reads whatever did land.",
-        "operationId": "sync_now_sync_post",
+        "operationId": "syncNow",
         "responses": {
           "200": {
             "content": {
@@ -2151,7 +2151,7 @@
     "/training/skips": {
       "post": {
         "description": "Mark a scheduled match or training as missed, or undo that.\n\nOnly untracked days are affected in the first place \u2014 a day the watch\nrecorded is scored on what it recorded, and a skip there changes\nnothing (see api/services/exercises.py). The 404 is what stops a stale\nid becoming a row that silently matches nothing for ever.",
-        "operationId": "set_skip_training_skips_post",
+        "operationId": "setSkip",
         "requestBody": {
           "content": {
             "application/json": {
@@ -2197,7 +2197,7 @@
     },
     "/training/status": {
       "get": {
-        "operationId": "training_status_training_status_get",
+        "operationId": "trainingStatus",
         "parameters": [
           {
             "in": "query",
