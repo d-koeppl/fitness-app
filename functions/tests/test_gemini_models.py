@@ -50,7 +50,9 @@ def stub_list(monkeypatch, pages: list[FakeResponse]) -> list[dict]:
     calls: list[dict] = []
     queue = list(pages)
 
-    def fake_get(url, params, timeout):
+    def fake_get(url, params, headers, timeout):
+        assert headers == {"x-goog-api-key": "test-key"}
+        assert "key" not in params, "the key must never be in the URL"
         calls.append(dict(params))
         return queue.pop(0)
 

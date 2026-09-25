@@ -83,11 +83,19 @@ def pick_fallback(stable: list[str], primary: str) -> str | None:
     return next((m for m in stable if flash_version(m) < ceiling), None)
 
 
+def api_key_header() -> dict[str, str]:
+    """The key goes in a header, never the URL. As `?key=` it was part of
+    every URL, and requests quotes the URL in its HTTPError, so a failed
+    call wrote the key to Cloud Logging, into the job's results, and into
+    the 502 message New report shows (found 2026-09-25)."""
+    return {"x-goog-api-key": settings.gemini_api_key}
+
+
 def _fetch_stable() -> list[str]:
     listed: list[dict] = []
-    params = {"key": settings.gemini_api_key, "pageSize": 1000}
+    params = {"pageSize": 1000}
     while True:
-        resp = requests.get(LIST_URL, params=params, timeout=10)
+        resp = requests.get(LIST_URL, params=params, headers=api_key_header(), timeout=10)
         resp.raise_for_status()
         page = resp.json()
         listed.extend(page.get("models", []))
