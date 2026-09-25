@@ -522,6 +522,22 @@
         "title": "ExerciseSessionOut",
         "type": "object"
       },
+      "GoogleStatusOut": {
+        "properties": {
+          "calendar": {
+            "$ref": "#/components/schemas/TokenStatusOut"
+          },
+          "health": {
+            "$ref": "#/components/schemas/TokenStatusOut"
+          }
+        },
+        "required": [
+          "calendar",
+          "health"
+        ],
+        "title": "GoogleStatusOut",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -758,6 +774,43 @@
           "kickoff"
         ],
         "title": "MissingMatchOut",
+        "type": "object"
+      },
+      "OAuthCallbackOut": {
+        "properties": {
+          "scopes": {
+            "title": "Scopes",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "target",
+          "scopes"
+        ],
+        "title": "OAuthCallbackOut",
+        "type": "object"
+      },
+      "OAuthLoginOut": {
+        "description": "Google's consent URL, for the app to open in a browser. A JSON answer\nrather than the old redirect: the app cannot attach its ID token to a\nbrowser navigation, so it asks for the URL with the token first\n(ADR-029).",
+        "properties": {
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "OAuthLoginOut",
         "type": "object"
       },
       "ScorePointOut": {
@@ -1009,6 +1062,72 @@
           "skipped"
         ],
         "title": "SkipOut",
+        "type": "object"
+      },
+      "SyncOut": {
+        "description": "What POST /sync returns: one entry per source, \"ok\" or\n\"failed: <reason>\".",
+        "properties": {
+          "sources": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Sources",
+            "type": "object"
+          }
+        },
+        "required": [
+          "sources"
+        ],
+        "title": "SyncOut",
+        "type": "object"
+      },
+      "TokenStatusOut": {
+        "description": "`connected` is row-existence only: a grant revoked in the Google\naccount settings still leaves a row behind and only fails on the next\nrefresh. The timestamps let the dashboard show staleness.",
+        "properties": {
+          "access_token_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access Token Expires At"
+          },
+          "connected": {
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "scopes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scopes"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "connected"
+        ],
+        "title": "TokenStatusOut",
         "type": "object"
       },
       "TrainingStatusOut": {
@@ -1816,6 +1935,166 @@
         ]
       }
     },
+    "/oauth/google/callback": {
+      "get": {
+        "operationId": "callback_oauth_google_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "error",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthCallbackOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Callback",
+        "tags": [
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/google/login": {
+      "post": {
+        "description": "The consent URL for `target`. Signed-in only, like everything but\nthe callback, so only the owner can start a flow.",
+        "operationId": "login_oauth_google_login_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "target",
+            "required": true,
+            "schema": {
+              "title": "Target",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthLoginOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Login",
+        "tags": [
+          "oauth"
+        ]
+      }
+    },
+    "/oauth/google/status": {
+      "get": {
+        "operationId": "status_oauth_google_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleStatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Status",
+        "tags": [
+          "oauth"
+        ]
+      }
+    },
     "/reports/latest": {
       "get": {
         "operationId": "get_latest_report_reports_latest_get",
@@ -1839,6 +2118,33 @@
         "summary": "Get Latest Report",
         "tags": [
           "reports"
+        ]
+      }
+    },
+    "/sync": {
+      "post": {
+        "description": "Google Health, heart rate and the calendar, once, synchronously \u2014 the\ncaller is watching a spinner. Not the \u00d6FB scrape: that stays nightly.\n\nNo Gemini call and no report, so no budget to check. A dead source does\nnot fail the request; it comes back as \"failed: \u2026\" in `sources`, and the\napp still re-reads whatever did land.",
+        "operationId": "sync_now_sync_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Sync Now",
+        "tags": [
+          "sync"
         ]
       }
     },

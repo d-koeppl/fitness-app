@@ -79,6 +79,19 @@ Every API route requires a Firebase ID token whose email is in
 ([ADR-029](docs/adr/029-firebase-auth-access-gate.md)). Adding to that set
 is a security decision, not a convenience.
 
+## Functions and secrets
+
+- `api` serves the FastAPI app; `jobs` runs hourly at :30 Vienna time
+  (`functions/api/jobs.py`): Google Health, heart rate, calendar, and the
+  ÖFB scrape at `OEFB_SYNC_HOUR`. One Cloud Scheduler job — the free tier
+  allows three per billing account.
+- Secrets live in Secret Manager, never in a `.env`:
+  `TOKEN_ENCRYPTION_KEY` (must stay the key the stored Google tokens were
+  encrypted with), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`. Set one with
+  `firebase functions:secrets:set NAME --data-file -`.
+- Non-secret deploy settings are in `functions/.env.fitness-75c22`
+  (not committed; see `functions/.env.example`).
+
 ## Documentation
 
 - [docs/adr/](docs/adr/) — why each decision was made. Numbering

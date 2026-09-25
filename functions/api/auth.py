@@ -23,10 +23,10 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from api.config import settings
 
-# Liveness only; it says nothing about the data. The Google OAuth callback
-# joins this list in phase 3 (Google redirects there without our token;
-# a signed `state` protects it instead).
-PUBLIC_PATHS = frozenset({"/healthz"})
+# /healthz is liveness only and says nothing about the data. The Google
+# OAuth callback is where Google redirects the browser, without our token;
+# the sealed `state` protects it instead (api/routers/oauth.py).
+PUBLIC_PATHS = frozenset({"/healthz", "/oauth/google/callback"})
 
 _bearer = HTTPBearer(auto_error=False)
 

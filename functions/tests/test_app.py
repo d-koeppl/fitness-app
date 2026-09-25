@@ -4,7 +4,9 @@ every later route depends on it."""
 
 from __future__ import annotations
 
-import importlib
+import subprocess
+import sys
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 from flask import Request
@@ -34,8 +36,18 @@ def test_healthz_through_the_cloud_function_adapter():
 def test_importing_main_does_not_start_the_adapter():
     # The deployed server forks after importing main; an adapter (and its
     # event-loop thread) built at import time hangs every request there.
-    importlib.reload(main)
-    assert main._wsgi_app.cache_info().currsize == 0
+    # A fresh interpreter, not importlib.reload: main.py declares its
+    # Secret Manager parameters at import, and Firebase refuses a second
+    # declaration of the same name.
+    probe = "import main; print(main._wsgi_app.cache_info().currsize)"
+    result = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=Path(main.__file__).parent,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout.strip() == "0"
 
 
 def test_unknown_path_is_a_404_not_an_adapter_error():
