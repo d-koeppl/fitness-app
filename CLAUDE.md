@@ -107,7 +107,8 @@ is a security decision, not a convenience.
 - `api` serves the FastAPI app; `jobs` runs hourly at :30 Vienna time
   (`functions/api/jobs.py`): Google Health, heart rate, calendar, the ÖFB
   scrape at `OEFB_SYNC_HOUR`, and the fallback report at
-  `WAKE_FALLBACK_HOUR` when the day has none (ADR-033), which then pushes
+  `WAKE_FALLBACK_HOUR` when the day has none (ADR-033), a last try an hour
+  later that may use the fallback model once (ADR-034), which then pushes
   "Fitness report ready" to every registered device through FCM (ADR-030).
   One Cloud Scheduler job — the free tier allows three per billing account.
 - Push needs no secret: the functions send FCM as their own service
