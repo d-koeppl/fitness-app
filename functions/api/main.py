@@ -18,7 +18,9 @@ from api.routers import calendar as calendar_router
 from api.routers import drinks as drinks_router
 from api.routers import health as health_router
 from api.routers import matches as matches_router
+from api.routers import oauth as oauth_router
 from api.routers import reports as reports_router
+from api.routers import sync as sync_router
 from api.routers import training as training_router
 
 # Every route requires a signed-in, allowlisted user unless its path is in
@@ -54,6 +56,8 @@ for router in (
     matches_router.router,
     calendar_router.router,
     reports_router.router,
+    sync_router.router,
+    oauth_router.router,
 ):
     app.include_router(router)
 

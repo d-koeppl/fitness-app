@@ -62,6 +62,22 @@ person.
   The emulator sets that for the functions it runs; it must never be set
   on a deployed function.
 
+## Amendment (2026-09-25): the Google OAuth routes
+
+Phase 3 brought the Calendar/Health consent flow over, and it has two
+routes the rule above does not fit:
+
+- **`POST /oauth/google/login` returns the consent URL as JSON** instead
+  of redirecting. The app cannot attach its ID token to a browser
+  navigation, so it asks for the URL with the token, then opens it.
+- **`GET /oauth/google/callback` is public** (in `PUBLIC_PATHS`): Google
+  redirects the browser there without our token. What guards it is the
+  `state`: the target and a timestamp sealed with Fernet under
+  `TOKEN_ENCRYPTION_KEY`, refused if forged, altered or older than ten
+  minutes. The old stack kept pending states in its one process's memory;
+  a Cloud Function has no such process, and the login and the callback
+  can land on different instances.
+
 ## How we know it works
 
 2026-09-25, against the emulators, with real emulator-issued ID tokens and

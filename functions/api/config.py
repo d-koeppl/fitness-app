@@ -123,6 +123,13 @@ class Settings(BaseSettings):
     oefb_sync_minute: int = 30
     oefb_sync_days_back: int = 3
 
+    # --- ÖFB scrape -------------------------------------------------------
+    # Whose matches, on which club's page, in which season. No defaults:
+    # unset, the scrape is skipped rather than run against a stranger's club.
+    oefb_player_name: str = ""
+    oefb_team_url: str = ""
+    oefb_season: str = ""
+
     # --- training model ---------------------------------------------------
     # The "Training" calendar block runs 3 hours, but the on-pitch session
     # is a fixed 90 minutes.
@@ -138,6 +145,13 @@ class Settings(BaseSettings):
     @classmethod
     def _csv(cls, value: object) -> object:
         return _split_csv(value)
+
+    @field_validator("token_encryption_key", "google_client_id", "google_client_secret", "gemini_api_key")
+    @classmethod
+    def _strip_secret(cls, value: str) -> str:
+        # Secret Manager hands back exactly what was stored; a newline that
+        # slipped in with it would break the Fernet key or the OAuth client.
+        return value.strip()
 
     @field_validator("allowed_emails")
     @classmethod

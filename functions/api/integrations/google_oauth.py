@@ -11,24 +11,28 @@ Refresh tokens are the durable credential — stored encrypted
 (api/crypto.py) and used server-side only; the app never sees a Google
 token.
 
-Still to change in phase 3: the pending-state store below is an in-memory
-dict, which was fine for one long-running process and is not for Cloud
-Functions, where the login and the callback can land on different
-instances. Phase 3 replaces it with a signed `state` (ADR-029).
+The CSRF `state` is self-contained: the target and a timestamp, sealed
+with Fernet under TOKEN_ENCRYPTION_KEY. The old stack kept pending states
+in a dict in its one long-running process; a Cloud Function has no such
+process, and the login and the callback can land on different instances.
+A Fernet token is tamper-proof and carries its own age, so any instance
+can check it — and the callback is reachable without the app's ID token
+(Google redirects there), which is why this check is what guards it.
 """
 
 from __future__ import annotations
 
+import json
 import secrets
-import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
 
 import requests
+from cryptography.fernet import InvalidToken
 
 from api.config import settings
-from api.crypto import decrypt, encrypt
+from api.crypto import decrypt, encrypt, seal, unseal
 from api.store.rows import OAuthToken
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
@@ -62,9 +66,7 @@ def _store(store):
     return get_store()
 
 
-# CSRF state store, mapping state -> (target, expiry). See the module
-# docstring: replaced by a signed state in phase 3.
-_PENDING_STATES: dict[str, tuple[str, float]] = {}
+# How long a consent screen may stay open before its state is refused.
 _STATE_TTL_SECONDS = 600
 
 
@@ -76,11 +78,10 @@ def _require_client_config() -> None:
         )
 
 
-def _prune_expired_states() -> None:
-    now = time.time()
-    for state, (_target, expires_at) in list(_PENDING_STATES.items()):
-        if expires_at < now:
-            _PENDING_STATES.pop(state, None)
+def make_state(target: str) -> str:
+    """A sealed, timestamped state naming `target`. The nonce makes every
+    state distinct, so two logins in the same second cannot collide."""
+    return seal(json.dumps({"target": target, "nonce": secrets.token_urlsafe(16)}))
 
 
 def build_auth_url(target: str) -> str:
@@ -88,10 +89,7 @@ def build_auth_url(target: str) -> str:
     # bad request whatever the server's configuration.
     scopes = SCOPE_SETS[target]  # raises KeyError -> caller turns into 400
     _require_client_config()
-    _prune_expired_states()
-
-    state = secrets.token_urlsafe(24)
-    _PENDING_STATES[state] = (target, time.time() + _STATE_TTL_SECONDS)
+    state = make_state(target)
 
     params = {
         "client_id": settings.google_client_id,
@@ -108,11 +106,19 @@ def build_auth_url(target: str) -> str:
 
 
 def resolve_state(state: str) -> str | None:
-    """Consume a state token, returning its target ('calendar'/'health')
-    or None if it's unknown/expired."""
-    _prune_expired_states()
-    entry = _PENDING_STATES.pop(state, None)
-    return entry[0] if entry else None
+    """The target ('calendar'/'health') a state names, or None if it was
+    forged, tampered with, or is older than ten minutes.
+
+    Not single-use, unlike the old dict: a replayed state still needs a
+    fresh authorization `code`, which Google issues once and binds to this
+    redirect, so replaying the state alone gains nothing.
+    """
+    try:
+        payload = json.loads(unseal(state, ttl=_STATE_TTL_SECONDS))
+    except (InvalidToken, ValueError):
+        return None
+    target = payload.get("target") if isinstance(payload, dict) else None
+    return target if target in SCOPE_SETS else None
 
 
 def exchange_code(code: str) -> dict:

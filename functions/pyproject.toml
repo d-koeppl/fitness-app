@@ -2,7 +2,7 @@
 # Firebase deploys this directory as-is and imports main.py from it.
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "oefb/tests"]
 pythonpath = ["."]
 addopts = "-q --strict-markers"
 # Starlette's TestClient now prefers httpx2 over httpx; httpx still works
@@ -23,4 +23,4 @@ select = ["E", "F", "I", "UP", "B", "C4"]
 ignore = ["B008"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["api", "tools", "main"]
+known-first-party = ["api", "tools", "main", "oefb"]

@@ -33,3 +33,15 @@ def encrypt(value: str) -> str:
 
 def decrypt(token: str) -> str:
     return _fernet().decrypt(token.encode()).decode()
+
+
+def seal(value: str) -> str:
+    """Like `encrypt`, for short-lived values the caller checks the age of
+    with `unseal(..., ttl=)` — the OAuth `state` (ADR-029). URL-safe."""
+    return _fernet().encrypt(value.encode()).decode()
+
+
+def unseal(token: str, ttl: int) -> str:
+    """The sealed value, or `cryptography.fernet.InvalidToken` if it was
+    forged, altered, or sealed more than `ttl` seconds ago."""
+    return _fernet().decrypt(token.encode(), ttl=ttl).decode()
