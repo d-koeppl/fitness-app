@@ -1,4 +1,14 @@
 {
   "indexes": [],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    { "collectionGroup": "health_months", "fieldPath": "days", "indexes": [] },
+    { "collectionGroup": "calendar_months", "fieldPath": "events", "indexes": [] },
+    { "collectionGroup": "meta", "fieldPath": "months", "indexes": [] },
+    { "collectionGroup": "hr_traces", "fieldPath": "offsets", "indexes": [] },
+    { "collectionGroup": "hr_traces", "fieldPath": "bpm", "indexes": [] },
+    { "collectionGroup": "hr_traces", "fieldPath": "zone_seconds", "indexes": [] },
+    { "collectionGroup": "reports", "fieldPath": "summary_md", "indexes": [] },
+    { "collectionGroup": "reports", "fieldPath": "insights", "indexes": [] },
+    { "collectionGroup": "messages", "fieldPath": "content", "indexes": [] }
+  ]
 }

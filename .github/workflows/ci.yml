@@ -16,11 +16,8 @@ concurrency:
 
 jobs:
   functions:
-    name: functions (ruff + pytest)
+    name: functions (ruff + pytest on the Firestore emulator)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: functions
     steps:
       - uses: actions/checkout@v4
 
@@ -31,15 +28,33 @@ jobs:
           cache: pip
           cache-dependency-path: functions/requirements-dev.txt
 
+      # The Firestore emulator is a Java program started by the Firebase CLI.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Install dependencies
-        run: pip install -r requirements-dev.txt
+        run: |
+          pip install -r functions/requirements-dev.txt
+          npm install -g firebase-tools@15.31.0
 
       - name: Lint
+        working-directory: functions
         run: ruff check .
 
       - name: Test
-        # Includes the check that openapi/openapi.json matches the app.
-        run: pytest
+        # Inside emulators:exec, so the store tests run against a real
+        # Firestore; REQUIRE_FIRESTORE_EMULATOR turns a missing emulator
+        # into a failure instead of a skip. Includes the check that
+        # openapi/openapi.json matches the app.
+        env:
+          REQUIRE_FIRESTORE_EMULATOR: "1"
+        run: firebase emulators:exec --only firestore --project demo-fitness-test "cd functions && python -m pytest"
 
   app:
     name: app (analyze + test + build)

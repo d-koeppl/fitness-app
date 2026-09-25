@@ -14,6 +14,12 @@ from pydantic import BaseModel
 
 from api.auth import User, current_user, require_user
 from api.config import settings
+from api.routers import calendar as calendar_router
+from api.routers import drinks as drinks_router
+from api.routers import health as health_router
+from api.routers import matches as matches_router
+from api.routers import reports as reports_router
+from api.routers import training as training_router
 
 # Every route requires a signed-in, allowlisted user unless its path is in
 # api.auth.PUBLIC_PATHS. The interactive docs and the schema URL are off:
@@ -37,6 +43,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Carried over from fitness-dashboard phase by phase (see the port plan).
+# Every one of them sits behind require_user above.
+for router in (
+    health_router.router,
+    training_router.router,
+    drinks_router.router,
+    matches_router.router,
+    calendar_router.router,
+    reports_router.router,
+):
+    app.include_router(router)
 
 
 class Health(BaseModel):

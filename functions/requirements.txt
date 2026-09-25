@@ -1,7 +1,13 @@
 # Pinned so a deploy of a given commit installs the same code. Bump
-# deliberately, not by accident. Verified 2026-09-24.
+# deliberately, not by accident. Verified 2026-09-25.
 firebase-functions==0.6.0
 firebase-admin==7.7.0
+google-cloud-firestore==2.31.0
 fastapi==0.141.1
 a2wsgi==1.10.10
 pydantic-settings==2.15.0
+requests==2.34.2
+cryptography==50.0.1
+# zoneinfo's database. Linux ships one, Windows does not, and every local
+# day in this app is Europe/Vienna's (health_local_tz).
+tzdata==2026.4

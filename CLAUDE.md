@@ -21,6 +21,13 @@ cd functions && venv/Scripts/python -m ruff check . && venv/Scripts/python -m py
 cd app && flutter analyze && flutter test
 ```
 
+The store tests need the Firestore emulator and skip without it. To run
+everything, as CI does:
+
+```bash
+firebase emulators:exec --only firestore --project demo-fitness-test "cd functions && venv/Scripts/python -m pytest"
+```
+
 Set up `functions/venv` once with Python 3.13 (the deployed runtime):
 `py -3.13 -m venv functions/venv` then
 `functions/venv/Scripts/pip install -r functions/requirements-dev.txt`.
@@ -41,8 +48,15 @@ Firebase looks for the virtualenv at exactly that path.
 - **`openapi/openapi.json`** is a snapshot. After changing a route, run
   `python -m tools.export_openapi` from `functions/`; a test fails until
   you do.
-- **Firestore** is reached only by the functions. `firestore.rules` denies
-  all client access; keep it that way.
+- **Firestore** is reached only by the functions, and inside them only by
+  `functions/api/store/firestore.py` ([ADR-031](docs/adr/031-firestore-layout.md)).
+  Services call its methods; none imports the Firestore client.
+  `firestore.rules` denies all client access; keep it that way.
+- **Queries use single-field indexes only.** The emulator does not enforce
+  composite indexes, so a query that needs one passes every test and
+  fails in production. Filter further in Python instead.
+- **`functions/api/analysis/training_load.py` is pure** and has no I/O, as
+  in fitness-dashboard. It is where a wrong number stays invisible longest.
 - **Flutter app** (`app/lib/`): `api/` client code, `domain/` pure logic
   ported from `web/lib/` with its tests, `data/` state, `ui/` widgets.
 

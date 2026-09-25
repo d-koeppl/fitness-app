@@ -1,6 +1,540 @@
 {
   "components": {
     "schemas": {
+      "AiReportOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "insights": {
+            "additionalProperties": true,
+            "title": "Insights",
+            "type": "object"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "period_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period End"
+          },
+          "period_start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period Start"
+          },
+          "prompt_version": {
+            "title": "Prompt Version",
+            "type": "string"
+          },
+          "summary_md": {
+            "title": "Summary Md",
+            "type": "string"
+          },
+          "tokens_used": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens Used"
+          },
+          "trigger": {
+            "title": "Trigger",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "trigger",
+          "period_start",
+          "period_end",
+          "model",
+          "prompt_version",
+          "summary_md",
+          "insights",
+          "tokens_used"
+        ],
+        "title": "AiReportOut",
+        "type": "object"
+      },
+      "CalendarEventOut": {
+        "properties": {
+          "all_day": {
+            "title": "All Day",
+            "type": "boolean"
+          },
+          "end_ts": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Ts"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "start_ts": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Ts"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "start_ts",
+          "end_ts",
+          "all_day",
+          "location"
+        ],
+        "title": "CalendarEventOut",
+        "type": "object"
+      },
+      "DailyHealthOut": {
+        "properties": {
+          "active_zone_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Zone Minutes"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "hrv_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hrv Ms"
+          },
+          "resting_hr": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resting Hr"
+          },
+          "sleep_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sleep Minutes"
+          },
+          "steps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steps"
+          },
+          "vo2max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vo2Max"
+          },
+          "weight_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight Kg"
+          }
+        },
+        "required": [
+          "date",
+          "steps",
+          "resting_hr",
+          "hrv_ms",
+          "sleep_minutes",
+          "active_zone_minutes",
+          "weight_kg",
+          "vo2max"
+        ],
+        "title": "DailyHealthOut",
+        "type": "object"
+      },
+      "DayPointOut": {
+        "properties": {
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "fatigue": {
+            "title": "Fatigue",
+            "type": "number"
+          },
+          "fitness": {
+            "title": "Fitness",
+            "type": "number"
+          },
+          "load": {
+            "title": "Load",
+            "type": "number"
+          }
+        },
+        "required": [
+          "date",
+          "load",
+          "fitness",
+          "fatigue"
+        ],
+        "title": "DayPointOut",
+        "type": "object"
+      },
+      "DrinkCountIn": {
+        "description": "A count typed in rather than tapped up to \u2014 the counter, or one\nearlier day.\n\nBounded at 99 as typo protection, not as a drinking limit: either way\nit is one evening, and a three-digit number in that box is a slipped\nfinger, which is worth a 422 rather than a silent hundred rows.",
+        "properties": {
+          "count": {
+            "maximum": 99.0,
+            "minimum": 0.0,
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "title": "DrinkCountIn",
+        "type": "object"
+      },
+      "DrinkCounterOut": {
+        "description": "The Today tab's beer counter (ADR-019).\n\n`count` is the drinks since the last reset \u2014 the number on the stepper\n\u2014 not a lifetime total. Every write endpoint returns this same shape,\nso the client never has to re-read the counter after changing it.\n\n`volume_l` and `alcohol_grams` are what one tap means, sent rather than\nhard-coded in the frontend so the label under the stepper and the\nnumber the report reasons about can never drift apart.",
+        "properties": {
+          "alcohol_grams": {
+            "title": "Alcohol Grams",
+            "type": "integer"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "first_logged_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Logged At"
+          },
+          "last_logged_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Logged At"
+          },
+          "volume_l": {
+            "title": "Volume L",
+            "type": "number"
+          }
+        },
+        "required": [
+          "count",
+          "volume_l",
+          "alcohol_grams",
+          "first_logged_at",
+          "last_logged_at"
+        ],
+        "title": "DrinkCounterOut",
+        "type": "object"
+      },
+      "DrinkDayOut": {
+        "description": "One local day of beers, as the Beer sheet plots and edits it\n(ADR-023, ADR-024).\n\n`count` is the whole day \u2014 what was tapped in at the time plus what was\nfilled in afterwards \u2014 and the day is the *server's* local day, which\nis why the client is sent the date rather than working one out in the\nbrowser's own zone.\n\n`reported` is how many of those beers an AI report already counted. It\nis the floor: those rows stay, because a report describing four beers\nmust not end up beside a history holding two, so the editor stops its\nminus there instead of spending a round trip on a 422.\n\n`editable` is false for today alone, whose beers are the counter's. The\nserver decides it for the same reason it sends the date: its day\nboundary is not necessarily the browser's.",
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "editable": {
+            "title": "Editable",
+            "type": "boolean"
+          },
+          "reported": {
+            "title": "Reported",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "count",
+          "reported",
+          "editable"
+        ],
+        "title": "DrinkDayOut",
+        "type": "object"
+      },
+      "ExerciseSessionOut": {
+        "description": "One session behind a day's load \u2014 mirrors\napi.services.exercises.ExerciseSession.\n\n`metrics` is an open bag of whatever else Google recorded for the\nsession, keyed by its own camelCase field name. It is untyped on\npurpose: the set varies by activity type and by what the Health API has\nshipped, and pinning it down here would mean a schema change every time\nthe watch learns a new number. The four fields above it are the ones\nconfirmed live and used for display \u2014 see the service module.",
+        "properties": {
+          "active_zone_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Zone Minutes"
+          },
+          "average_heart_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Heart Rate"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "duration_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Minutes"
+          },
+          "end_ts": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Ts"
+          },
+          "estimated_load": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Load"
+          },
+          "exercise_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exercise Type"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "metrics": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Metrics",
+            "type": "object"
+          },
+          "ref_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref Id"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "boolean"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "start_ts": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Ts"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "start_ts",
+          "end_ts",
+          "exercise_type",
+          "duration_minutes",
+          "active_zone_minutes",
+          "average_heart_rate",
+          "metrics",
+          "source",
+          "ref_id",
+          "title",
+          "estimated_load",
+          "skipped"
+        ],
+        "title": "ExerciseSessionOut",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
       "Health": {
         "properties": {
           "status": {
@@ -12,6 +546,154 @@
           "status"
         ],
         "title": "Health",
+        "type": "object"
+      },
+      "HeartRateZoneOut": {
+        "description": "One heart rate zone over a session: where it starts, and how long was\nspent in it.\n\n`lower_bpm` is null only for the lowest zone and `upper_bpm` only for the\nhighest \u2014 they are the ends of the scale, not missing values. The bounds\nare derived (the API publishes minutes per zone but not the boundaries\nbetween them); `SessionHeartRateOut.zone_source` says where the seconds\ncame from.",
+        "properties": {
+          "lower_bpm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lower Bpm"
+          },
+          "seconds": {
+            "title": "Seconds",
+            "type": "number"
+          },
+          "upper_bpm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Upper Bpm"
+          },
+          "zone": {
+            "title": "Zone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "zone",
+          "lower_bpm",
+          "upper_bpm",
+          "seconds"
+        ],
+        "title": "HeartRateZoneOut",
+        "type": "object"
+      },
+      "LatestMeasurementsOut": {
+        "description": "The last known value of each sparse metric (ADR-018).\n\nEvery field is optional and omitted when the metric has never been\nrecorded \u2014 an absent key is \"no reading ever\", which is not the same as\na reading of zero. The values here are deliberately not folded into\n`DailyHealthOut`: a daily row says what was measured *that day*, and a\ncarried-forward weight in that shape would make the charts draw a flat\nline through days nobody stood on the scale.",
+        "properties": {
+          "vo2max": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeasurementOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "weight_kg": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeasurementOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "LatestMeasurementsOut",
+        "type": "object"
+      },
+      "MatchOut": {
+        "properties": {
+          "goals": {
+            "title": "Goals",
+            "type": "integer"
+          },
+          "home_away": {
+            "title": "Home Away",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "match_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Date"
+          },
+          "minutes_played": {
+            "title": "Minutes Played",
+            "type": "integer"
+          },
+          "oefb_game_id": {
+            "title": "Oefb Game Id",
+            "type": "string"
+          },
+          "opponent": {
+            "title": "Opponent",
+            "type": "string"
+          },
+          "red_card": {
+            "title": "Red Card",
+            "type": "boolean"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "started": {
+            "title": "Started",
+            "type": "boolean"
+          },
+          "yellow_card": {
+            "title": "Yellow Card",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "oefb_game_id",
+          "match_date",
+          "opponent",
+          "home_away",
+          "result",
+          "started",
+          "minutes_played",
+          "goals",
+          "yellow_card",
+          "red_card"
+        ],
+        "title": "MatchOut",
         "type": "object"
       },
       "Me": {
@@ -31,6 +713,456 @@
         ],
         "title": "Me",
         "type": "object"
+      },
+      "MeasurementOut": {
+        "description": "One reading of a metric that is not recorded every day, with the day\nit was taken. Mirrors api.services.health.Measurement.",
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "date"
+        ],
+        "title": "MeasurementOut",
+        "type": "object"
+      },
+      "MissingMatchOut": {
+        "description": "Yesterday's fixture from the calendar that the \u00d6FB log has no game\nfor \u2014 see api/services/matches.py for why that can happen.",
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "kickoff": {
+            "format": "date-time",
+            "title": "Kickoff",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "day",
+          "title",
+          "kickoff"
+        ],
+        "title": "MissingMatchOut",
+        "type": "object"
+      },
+      "ScorePointOut": {
+        "description": "One day's recovery and readiness. Separate from DayPointOut because\nthe two series end on different days \u2014 see analysis.training_load.",
+        "properties": {
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "readiness": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readiness"
+          },
+          "recovery": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recovery"
+          }
+        },
+        "required": [
+          "date",
+          "recovery",
+          "readiness"
+        ],
+        "title": "ScorePointOut",
+        "type": "object"
+      },
+      "SessionHeartRateOut": {
+        "description": "One tracked session's heart rate trace \u2014 mirrors\napi.services.heart_rate.SessionHeartRate.\n\n`samples` is `[seconds_from_start, bpm]` pairs, thinned to what a\nphone-width chart can draw; `sample_count` is how many readings are\nstored behind them, so the client can say how much it is showing.\n\nEmpty `samples` means two different things, told apart by `fetched_at`:\nwith a timestamp, the watch recorded no heart rate for this session;\nwithout one, the sync has not reached it yet (ADR-020 fetches the newest\nsessions first, a bounded number per run).",
+        "properties": {
+          "average_bpm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Bpm"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "end_ts": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Ts"
+          },
+          "fetched_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetched At"
+          },
+          "max_bpm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Bpm"
+          },
+          "max_hr": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Hr"
+          },
+          "min_bpm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Bpm"
+          },
+          "resting_hr": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resting Hr"
+          },
+          "sample_count": {
+            "title": "Sample Count",
+            "type": "integer"
+          },
+          "samples": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            },
+            "title": "Samples",
+            "type": "array"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "start_ts": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Ts"
+          },
+          "zone_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone Source"
+          },
+          "zones": {
+            "items": {
+              "$ref": "#/components/schemas/HeartRateZoneOut"
+            },
+            "title": "Zones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "session_id",
+          "date",
+          "start_ts",
+          "end_ts",
+          "fetched_at",
+          "samples",
+          "sample_count",
+          "min_bpm",
+          "max_bpm",
+          "average_bpm",
+          "zones",
+          "zone_source",
+          "resting_hr",
+          "max_hr"
+        ],
+        "title": "SessionHeartRateOut",
+        "type": "object"
+      },
+      "SkipIn": {
+        "description": "Mark a scheduled session as done-or-not.\n\nA state, not a toggle: the dashboard sends what it wants to be true, so\na double tap or a replayed request lands on the same answer. `ref_id` is\nthe natural key the listed session carries \u2014 `oefb_game_id` for a match,\nthe Google event id for a training.",
+        "properties": {
+          "ref_id": {
+            "title": "Ref Id",
+            "type": "string"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "boolean"
+          },
+          "source": {
+            "enum": [
+              "match",
+              "training"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "ref_id",
+          "skipped"
+        ],
+        "title": "SkipIn",
+        "type": "object"
+      },
+      "SkipOut": {
+        "properties": {
+          "ref_id": {
+            "title": "Ref Id",
+            "type": "string"
+          },
+          "skipped": {
+            "title": "Skipped",
+            "type": "boolean"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "ref_id",
+          "skipped"
+        ],
+        "title": "SkipOut",
+        "type": "object"
+      },
+      "TrainingStatusOut": {
+        "description": "Mirrors api.analysis.training_load.TrainingStatus. Form travels as a\npercentage of fitness because the load unit (Active Zone Minutes) does\nnot carry the \u00b125 TSB bands cycling uses.",
+        "properties": {
+          "days_of_history": {
+            "title": "Days Of History",
+            "type": "integer"
+          },
+          "fatigue": {
+            "title": "Fatigue",
+            "type": "number"
+          },
+          "fitness": {
+            "title": "Fitness",
+            "type": "number"
+          },
+          "form": {
+            "title": "Form",
+            "type": "number"
+          },
+          "form_pct": {
+            "title": "Form Pct",
+            "type": "number"
+          },
+          "headline": {
+            "title": "Headline",
+            "type": "string"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "ramp_pct": {
+            "title": "Ramp Pct",
+            "type": "number"
+          },
+          "readiness": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readiness"
+          },
+          "readiness_parts": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Readiness Parts",
+            "type": "object"
+          },
+          "recovery": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recovery"
+          },
+          "recovery_parts": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Recovery Parts",
+            "type": "object"
+          },
+          "scores": {
+            "items": {
+              "$ref": "#/components/schemas/ScorePointOut"
+            },
+            "title": "Scores",
+            "type": "array"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/DayPointOut"
+            },
+            "title": "Series",
+            "type": "array"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "headline",
+          "fitness",
+          "fatigue",
+          "form",
+          "form_pct",
+          "ramp_pct",
+          "recovery",
+          "recovery_parts",
+          "readiness",
+          "readiness_parts",
+          "days_of_history",
+          "series",
+          "scores",
+          "notes"
+        ],
+        "title": "TrainingStatusOut",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -46,6 +1178,524 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/calendar/events": {
+      "get": {
+        "operationId": "list_upcoming_events_calendar_events_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CalendarEventOut"
+                  },
+                  "title": "Response List Upcoming Events Calendar Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Upcoming Events",
+        "tags": [
+          "calendar"
+        ]
+      }
+    },
+    "/drinks": {
+      "get": {
+        "description": "The drinks logged since the last daily report claimed them.",
+        "operationId": "get_counter_drinks_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrinkCounterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Counter",
+        "tags": [
+          "drinks"
+        ]
+      },
+      "post": {
+        "description": "Plus one \u2014 one 0.5 L beer.",
+        "operationId": "add_drink_drinks_post",
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrinkCounterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Add Drink",
+        "tags": [
+          "drinks"
+        ]
+      },
+      "put": {
+        "description": "Set the counter to a number typed straight into the tile \u2014 four taps\nis fine, eleven is not.\n\nIdempotent, unlike the two above: it says what the counter should read,\nso a replayed request cannot add a beer. Only the drinks no report has\nclaimed are moved; the difference is added or removed at the newest end.",
+        "operationId": "set_counter_drinks_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DrinkCountIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrinkCounterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Counter",
+        "tags": [
+          "drinks"
+        ]
+      }
+    },
+    "/drinks/days": {
+      "get": {
+        "description": "The last `days` local days ending today, newest first, empty ones\nincluded \u2014 the Beer sheet's chart and its editable day rows read the\nsame list.\n\nToday is in it so the chart can plot it, and comes back\n`editable: false` because that evening belongs to the counter.",
+        "operationId": "list_days_drinks_days_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 14,
+              "maximum": 730,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DrinkDayOut"
+                  },
+                  "title": "Response List Days Drinks Days Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Days",
+        "tags": [
+          "drinks"
+        ]
+      }
+    },
+    "/drinks/days/{day}": {
+      "get": {
+        "description": "One day, however far back \u2014 what the date picker reads when a date is\nchosen, so the field opens on the number already stored rather than on a\nguess (ADR-024). A day with no beers answers zero, not 404.",
+        "operationId": "get_day_drinks_days__day__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "day",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrinkDayOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Day",
+        "tags": [
+          "drinks"
+        ]
+      },
+      "put": {
+        "description": "Fill in (or correct) the beers of one earlier day \u2014 the round nobody\nremembered to tap in on Saturday (ADR-023).\n\nIdempotent: it carries the number that day should read, so a retry\nlands on the same history. The rows it writes are off the counter from\nbirth, so this cannot move the stepper upwards or feed tonight's report\na beer from last week \u2014 it lands on the day it names, which is where\nlater analysis reads it.\n\nAny past date is accepted, however old \u2014 the picker that sends it is a\ncalendar, not a typed number (ADR-024). 422, with the reason in\n`detail`, for the two the service refuses: today or later (that is the\ncounter's job), and a count below what a report already counted on that\nday. A count over 99 is refused a step earlier, by `DrinkCountIn`, the\nsame slipped-finger guard the counter has.",
+        "operationId": "set_day_drinks_days__day__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "day",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DrinkCountIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrinkDayOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Day",
+        "tags": [
+          "drinks"
+        ]
+      }
+    },
+    "/drinks/last": {
+      "delete": {
+        "description": "Minus one: take back the most recent tap that no report has counted\nyet. A no-op at zero \u2014 the count that comes back says so, and a 404 for\na button the user pressed once too often would be noise.",
+        "operationId": "undo_drink_drinks_last_delete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrinkCounterOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Undo Drink",
+        "tags": [
+          "drinks"
+        ]
+      }
+    },
+    "/health-data/daily": {
+      "get": {
+        "description": "The newest `limit` stored days, newest first. Read a month at a time\nfrom the newest, so a year of history costs about a dozen reads.",
+        "operationId": "list_daily_health_health_data_daily_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DailyHealthOut"
+                  },
+                  "title": "Response List Daily Health Health Data Daily Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Daily Health",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/health-data/exercises": {
+      "get": {
+        "description": "The most recently tracked workouts, newest first.",
+        "operationId": "list_exercises_health_data_exercises_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExerciseSessionOut"
+                  },
+                  "title": "Response List Exercises Health Data Exercises Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Exercises",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/health-data/exercises/{session_id}/heart-rate": {
+      "get": {
+        "description": "One tracked session's heart rate trace (ADR-020).\n\nIts own request rather than a field on `/exercises`: a trace is a few\nhundred points even after thinning, and the list renders ten sessions\nthat would each be carrying one nobody has opened. The detail sheet\nfetches this when it opens.\n\n404 is \"no such session\" \u2014 a bad id, or one naming a match or training\nthe watch never recorded. A session that exists but has no readings\nanswers 200 with an empty `samples`, which is a different thing and the\nsheet says so.",
+        "operationId": "exercise_heart_rate_health_data_exercises__session_id__heart_rate_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionHeartRateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Exercise Heart Rate",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/health-data/latest": {
+      "get": {
+        "description": "The current weight and VO2 max, whichever day they were last measured\non (ADR-018). Separate from `/daily` because it deliberately reaches past\nthe window `/daily` was asked for: the last weigh-in can be older than\nany range the app shows, and it is still the current weight.",
+        "operationId": "latest_health_measurements_health_data_latest_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LatestMeasurementsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Latest Health Measurements",
+        "tags": [
+          "health"
+        ]
+      }
+    },
     "/healthz": {
       "get": {
         "description": "Liveness probe. Named /healthz, not /health, so it isn't mistaken for\na sibling of the /health-data routes.",
@@ -73,6 +1723,72 @@
         ]
       }
     },
+    "/matches": {
+      "get": {
+        "description": "Newest first, undated rows before all of them \u2014 Postgres'\n`ORDER BY match_date DESC` puts NULLs first, and this keeps its order.",
+        "operationId": "list_matches_matches_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MatchOut"
+                  },
+                  "title": "Response List Matches Matches Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Matches",
+        "tags": [
+          "matches"
+        ]
+      }
+    },
+    "/matches/missing": {
+      "get": {
+        "description": "Yesterday's calendar fixture if the \u00d6FB log has no game that day,\nelse null. The app shows it as a notice on the Today tab.",
+        "operationId": "missing_yesterday_matches_missing_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/MissingMatchOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Missing Yesterday Matches Missing Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Missing Yesterday",
+        "tags": [
+          "matches"
+        ]
+      }
+    },
     "/me": {
       "get": {
         "description": "Who the API thinks is calling \u2014 the app's check that sign-in worked.",
@@ -97,6 +1813,127 @@
         "summary": "Me",
         "tags": [
           "meta"
+        ]
+      }
+    },
+    "/reports/latest": {
+      "get": {
+        "operationId": "get_latest_report_reports_latest_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Latest Report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/training/skips": {
+      "post": {
+        "description": "Mark a scheduled match or training as missed, or undo that.\n\nOnly untracked days are affected in the first place \u2014 a day the watch\nrecorded is scored on what it recorded, and a skip there changes\nnothing (see api/services/exercises.py). The 404 is what stops a stale\nid becoming a row that silently matches nothing for ever.",
+        "operationId": "set_skip_training_skips_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkipIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkipOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Set Skip",
+        "tags": [
+          "training"
+        ]
+      }
+    },
+    "/training/status": {
+      "get": {
+        "operationId": "training_status_training_status_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 366,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainingStatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Training Status",
+        "tags": [
+          "training"
         ]
       }
     }
