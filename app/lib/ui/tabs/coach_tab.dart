@@ -85,13 +85,7 @@ class _CoachTabState extends ConsumerState<CoachTab> {
         const SizedBox(height: 8),
         CoachScopeBar(budgetDetail: budget?.detail),
         const SizedBox(height: 8),
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(color: p.surface, borderRadius: BorderRadius.circular(Shape.xl)),
-            clipBehavior: Clip.antiAlias,
-            child: _Transcript(coach: coach, scroll: _scroll),
-          ),
-        ),
+        Expanded(child: _Transcript(coach: coach, scroll: _scroll)),
         if (coach.error != null) ...[
           const SizedBox(height: 8),
           Container(
