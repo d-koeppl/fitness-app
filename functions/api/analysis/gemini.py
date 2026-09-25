@@ -27,6 +27,7 @@ from api.services import drinks, gemini_usage
 from api.services.exercises import sessions_since
 from api.services.health import Measurement, latest_measurements
 from api.services.matches import newest_first
+from api.services.push import notify_report_ready
 from api.services.reports import report_exists_today
 from api.services.sessions import ExerciseSession
 from api.services.training import get_training_status
@@ -527,8 +528,15 @@ def run_daily_fallback(store: FirestoreStore) -> str:
     re-running would just spend Gemini budget to say the same thing.
     Called from the hourly job; returns what it did, for the job's log line.
 
-    The push announcing it arrives in phase 6 (ADR-030)."""
+    Then it pushes the report to every registered device (ADR-030). A push
+    that fails is logged and leaves the report standing: it is already
+    saved, and the app shows it on the next open either way."""
     if report_exists_today(store):
         return "skipped (today already has a report)"
     report = run_analysis(store, "daily_fallback")
-    return f"ok (report {report.id})"
+    try:
+        pushed = notify_report_ready(store, report)
+    except Exception as exc:  # noqa: BLE001 — logged; the report itself is saved
+        logger.exception("Push after the daily report failed")
+        pushed = f"failed: {exc}"
+    return f"ok (report {report.id}; push: {pushed})"

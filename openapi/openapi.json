@@ -813,6 +813,70 @@
         "title": "OAuthLoginOut",
         "type": "object"
       },
+      "PushDeviceIn": {
+        "properties": {
+          "platform": {
+            "enum": [
+              "android",
+              "web"
+            ],
+            "title": "Platform",
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "platform"
+        ],
+        "title": "PushDeviceIn",
+        "type": "object"
+      },
+      "PushDeviceOut": {
+        "description": "What was stored. The token is not echoed back: the caller has it.",
+        "properties": {
+          "platform": {
+            "enum": [
+              "android",
+              "web"
+            ],
+            "title": "Platform",
+            "type": "string"
+          },
+          "registered_at": {
+            "format": "date-time",
+            "title": "Registered At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "platform",
+          "registered_at"
+        ],
+        "title": "PushDeviceOut",
+        "type": "object"
+      },
+      "PushTokenIn": {
+        "description": "An FCM registration token. FCM's are about 160 characters; the bound\nonly keeps a garbage body out of Firestore.",
+        "properties": {
+          "token": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "PushTokenIn",
+        "type": "object"
+      },
       "RefreshReportOut": {
         "description": "What POST /reports/refresh returns: the per-source pull result plus\nthe report generated on the freshly-pulled data.",
         "properties": {
@@ -2113,6 +2177,91 @@
         "summary": "Status",
         "tags": [
           "oauth"
+        ]
+      }
+    },
+    "/push/devices": {
+      "delete": {
+        "description": "204 whether or not the token was registered, so a retry is harmless.",
+        "operationId": "unregisterPushDevice",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushTokenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Unregister Push Device",
+        "tags": [
+          "push"
+        ]
+      },
+      "put": {
+        "description": "Idempotent: the same token again just refreshes its date.",
+        "operationId": "registerPushDevice",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushDeviceIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushDeviceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Register Push Device",
+        "tags": [
+          "push"
         ]
       }
     },

@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     # still cannot read this API.
     cors_allow_origin_regex: str = r"^http://(localhost|127\.0\.0\.1)(:\d+)?$"
 
+    # What a click on the report push opens in a browser (ADR-030). The
+    # Android app opens itself instead and ignores this.
+    web_app_url: str = "https://fitness-75c22.web.app"
+
     # The Google accounts allowed to use the API, as a JSON list:
     # ALLOWED_EMAILS=["someone@gmail.com"]. Empty means nobody: a deploy
     # that forgot to set it is locked, never open. Deployed from

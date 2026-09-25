@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/actions.dart';
 import '../data/dashboard.dart';
+import '../data/push.dart';
 import '../domain/format.dart';
 import 'tabs/coach_tab.dart';
 import 'tabs/fitness_tab.dart';
@@ -51,10 +52,43 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
     _opened.add(tab);
   });
 
+  /// Sign-out drops this device from the report push first (ADR-030).
+  Future<void> _signOut() async {
+    await ref.read(pushProvider.notifier).beforeSignOut();
+    await widget.signOut();
+  }
+
+  void _onPush(PushState? previous, PushState next) {
+    // A tap on the push: the report is on Today.
+    if (next.taps != (previous?.taps ?? 0)) _open(AppTab.today);
+    // With the app in front the system shows nothing, so say it here.
+    final arrival = next.arrival;
+    if (arrival != null && !identical(arrival, previous?.arrival)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(arrival.body.isEmpty ? arrival.title : '${arrival.title}: ${arrival.body}'),
+          action: _tab == AppTab.today ? null : SnackBarAction(label: 'Open', onPressed: () => _open(AppTab.today)),
+        ),
+      );
+    }
+  }
+
+  void _onBell(PushStatus status) {
+    if (status == PushStatus.blocked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Notifications are blocked. Allow them in the system or browser settings.')),
+      );
+      return;
+    }
+    ref.read(pushProvider.notifier).enable();
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(dashboardProvider);
     final sync = ref.watch(syncProvider);
+    final push = ref.watch(pushProvider);
+    ref.listen(pushProvider, _onPush);
     final p = Palette.of(context);
     if (state.accessDenied) {
       return _SignOutScreen(
@@ -90,17 +124,20 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
                 email: widget.email,
                 // The header chip (ADR-026): pull Google fresh, then re-read.
                 onSync: ref.read(syncProvider.notifier).syncNow,
-                signOut: widget.signOut,
+                push: push.status,
+                onBell: () => _onBell(push.status),
+                signOut: _signOut,
               ),
             ),
-            if (sync.problem != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(sync.problem!, style: TypeScale.labelSmall.copyWith(color: p.error.color)),
+            for (final problem in [sync.problem, push.problem])
+              if (problem != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(problem, style: TypeScale.labelSmall.copyWith(color: p.error.color)),
+                  ),
                 ),
-              ),
             const SizedBox(height: 16),
             Expanded(
               child: IndexedStack(
@@ -181,6 +218,8 @@ class _Header extends StatelessWidget {
     required this.lastSynced,
     required this.email,
     required this.onSync,
+    required this.push,
+    required this.onBell,
     required this.signOut,
   });
 
@@ -189,6 +228,10 @@ class _Header extends StatelessWidget {
   final DateTime? lastSynced;
   final String? email;
   final VoidCallback onSync;
+
+  /// The bell shows until notifications are on, as the web app's did.
+  final PushStatus push;
+  final VoidCallback onBell;
   final Future<void> Function() signOut;
 
   @override
@@ -232,6 +275,15 @@ class _Header extends StatelessWidget {
                     style: TypeScale.titleLarge.copyWith(color: p.onSurface),
                   ),
           ),
+          if (push == PushStatus.off || push == PushStatus.blocked)
+            IconButton(
+              tooltip: push == PushStatus.blocked ? 'Notifications are blocked' : 'Turn on notifications',
+              onPressed: onBell,
+              icon: Icon(
+                push == PushStatus.blocked ? Icons.notifications_off_outlined : Icons.notifications_none,
+                color: p.onSurfaceVariant,
+              ),
+            ),
           PopupMenuButton<void>(
             tooltip: email ?? 'Account',
             position: PopupMenuPosition.under,

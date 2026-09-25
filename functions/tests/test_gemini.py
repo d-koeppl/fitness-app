@@ -335,3 +335,31 @@ def test_daily_fallback_skips_when_the_day_already_has_a_report(store, answered)
 
     assert gemini.run_daily_fallback(store).startswith("skipped")
     assert store.latest_report().trigger == "manual"
+
+
+def test_daily_fallback_pushes_the_report(store, answered, monkeypatch):
+    from api.services import push
+
+    push.register(store, "phone", "android")
+    sent = []
+    monkeypatch.setattr(push, "_send", lambda tokens, report: sent.append((tokens, report.id)) or [None])
+
+    result = gemini.run_daily_fallback(store)
+
+    report = store.latest_report()
+    assert sent == [(["phone"], report.id)]
+    assert result == f"ok (report {report.id}; push: sent 1, pruned 0, failed 0)"
+
+
+def test_a_failed_push_leaves_the_daily_report_standing(store, answered, monkeypatch):
+    from api.services import push
+
+    push.register(store, "phone", "android")
+
+    def fcm_down(tokens, report):
+        raise RuntimeError("FCM unreachable")
+
+    monkeypatch.setattr(push, "_send", fcm_down)
+
+    assert gemini.run_daily_fallback(store).endswith("push: failed: FCM unreachable)")
+    assert store.latest_report().trigger == "daily_fallback"

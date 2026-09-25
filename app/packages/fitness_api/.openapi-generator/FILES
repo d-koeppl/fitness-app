@@ -8,6 +8,7 @@ lib/src/api/health_api.dart
 lib/src/api/matches_api.dart
 lib/src/api/meta_api.dart
 lib/src/api/oauth_api.dart
+lib/src/api/push_api.dart
 lib/src/api/reports_api.dart
 lib/src/api/sync_api.dart
 lib/src/api/training_api.dart
@@ -36,6 +37,9 @@ lib/src/model/measurement_out.dart
 lib/src/model/missing_match_out.dart
 lib/src/model/o_auth_callback_out.dart
 lib/src/model/o_auth_login_out.dart
+lib/src/model/push_device_in.dart
+lib/src/model/push_device_out.dart
+lib/src/model/push_token_in.dart
 lib/src/model/refresh_report_out.dart
 lib/src/model/score_point_out.dart
 lib/src/model/session_heart_rate_out.dart

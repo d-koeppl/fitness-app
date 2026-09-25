@@ -42,7 +42,7 @@ class InvalidToken(Exception):
 
 
 @functools.cache
-def _firebase_app():
+def firebase_app():
     # Initialised on first use, not at import: the deployed server forks
     # its workers after importing main.py (see the note there).
     import firebase_admin
@@ -61,7 +61,7 @@ def verify_firebase_token(token: str) -> dict:
     from firebase_admin import auth
 
     try:
-        return auth.verify_id_token(token, app=_firebase_app())
+        return auth.verify_id_token(token, app=firebase_app())
     except (ValueError, auth.InvalidIdTokenError, auth.ExpiredIdTokenError, auth.RevokedIdTokenError) as exc:
         raise InvalidToken(str(exc)) from exc
 

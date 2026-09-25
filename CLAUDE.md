@@ -103,8 +103,12 @@ is a security decision, not a convenience.
 - `api` serves the FastAPI app; `jobs` runs hourly at :30 Vienna time
   (`functions/api/jobs.py`): Google Health, heart rate, calendar, the ÖFB
   scrape at `OEFB_SYNC_HOUR`, and the fallback report at
-  `WAKE_FALLBACK_HOUR` when the day has none (ADR-033). One Cloud Scheduler job — the free tier
-  allows three per billing account.
+  `WAKE_FALLBACK_HOUR` when the day has none (ADR-033), which then pushes
+  "Fitness report ready" to every registered device through FCM (ADR-030).
+  One Cloud Scheduler job — the free tier allows three per billing account.
+- Push needs no secret: the functions send FCM as their own service
+  account. The browser build's `app/web/firebase-messaging-sw.js` pins the
+  Firebase JS SDK version `firebase_core_web` loads; bump them together.
 - Secrets live in Secret Manager, never in a `.env`:
   `TOKEN_ENCRYPTION_KEY` (must stay the key the stored Google tokens were
   encrypted with), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,

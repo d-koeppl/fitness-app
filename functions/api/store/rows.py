@@ -103,6 +103,16 @@ class AiReport:
 
 
 @dataclass
+class PushDevice:
+    """A phone or browser that gets the report-ready push (ADR-030). New in
+    this repo: fitness-dashboard stored Web Push subscriptions instead."""
+
+    token: str  # the FCM registration token
+    platform: str  # "android" | "web"
+    registered_at: datetime | None = None
+
+
+@dataclass
 class SkippedActivity:
     source: str  # "match" | "training"
     ref_id: str

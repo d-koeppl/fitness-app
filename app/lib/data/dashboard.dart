@@ -285,6 +285,13 @@ class DashboardController extends Notifier<DashboardState> {
   void setReport(AiReportOut report) =>
       state = _copy(data: state.data.copyWith(report: () => report), reportLoaded: true);
 
+  /// Re-read only the latest report: what a push announces. One request,
+  /// not the whole round.
+  Future<void> refreshReport() async {
+    final report = await _latestReport(_api);
+    if (report.ok && report.value != null) setReport(report.value!);
+  }
+
   /// Move the beer counter: optimistically on a tap, then to the server's
   /// answer (see DrinkStepper).
   void updateDrinks(DrinkCounterOut? Function(DrinkCounterOut? previous) change) =>

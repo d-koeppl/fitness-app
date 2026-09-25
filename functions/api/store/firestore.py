@@ -19,6 +19,7 @@ Layout, and why:
 | `conversations/<id>/messages` | `<id>` | a Conversation and its messages |
 | `gemini_usage` | `YYYY-MM-DD` (Pacific) | `requests.<model>` → count |
 | `oauth_tokens` | `<provider>` | one OAuthToken |
+| `push_devices` | SHA-256 of the FCM token | one PushDevice |
 | `meta/counters` | — | the next integer id per kind |
 
 Health days and calendar events are bucketed by month because the training
@@ -41,6 +42,7 @@ in production.
 from __future__ import annotations
 
 import functools
+import hashlib
 import json
 import os
 from collections.abc import Iterable, Iterator
@@ -60,6 +62,7 @@ from api.store.rows import (
     ExerciseHeartRate,
     MatchPerformance,
     OAuthToken,
+    PushDevice,
     SkippedActivity,
 )
 
@@ -799,6 +802,41 @@ class FirestoreStore:
 
     def delete_oauth_token(self, provider: str) -> None:
         self._db.collection("oauth_tokens").document(_doc_id(provider)).delete()
+
+    # --- push devices -------------------------------------------------------------
+
+    def push_devices(self) -> list[PushDevice]:
+        return [
+            PushDevice(
+                token=doc["token"],
+                platform=doc["platform"],
+                registered_at=_parse_ts(doc.get("registered_at")),
+            )
+            for doc in (s.to_dict() for s in self._db.collection("push_devices").stream())
+        ]
+
+    def put_push_device(self, row: PushDevice) -> None:
+        """Registering the same token again overwrites it: one document per
+        device however often the app starts."""
+        self._db.collection("push_devices").document(_token_id(row.token)).set(
+            {
+                "token": row.token,
+                "platform": row.platform,
+                "registered_at": _ts(row.registered_at) or datetime.now(UTC),
+            }
+        )
+
+    def delete_push_devices(self, tokens: Iterable[str]) -> None:
+        batch = self._db.batch()
+        for token in tokens:
+            batch.delete(self._db.collection("push_devices").document(_token_id(token)))
+        batch.commit()
+
+
+def _token_id(token: str) -> str:
+    # Hashed rather than used as the id: a token is ~160 characters of
+    # FCM's choosing, and a document id must not contain "/".
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 def _trace_id(session_start: datetime) -> str:
