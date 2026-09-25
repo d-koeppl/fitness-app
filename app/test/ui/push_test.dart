@@ -3,6 +3,7 @@
 // sign-out dropping the device.
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:fitness/push/push_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -196,5 +197,32 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(signedOut, isTrue);
+  });
+
+  testWidgets('a push for a new report re-reads everything, so the beer tile resets', (tester) async {
+    final sent = <Sent>[];
+    final push = FakePush(permissionNow: PushPermission.granted);
+    var latest = fixtures()['/reports/latest']! as Map<String, Object?>;
+    var drinks = fixtures()['/drinks']! as Map<String, Object?>;
+    final api = fakeApi({
+      ...fixtures(),
+      'PUT /push/devices': registered,
+      '/reports/latest': (RequestOptions _) => latest,
+      '/drinks': (RequestOptions _) => drinks,
+    }, sent: sent);
+    await pumpDashboard(tester, api, push: push);
+    expect(find.byTooltip('2 beers. Type a different number'), findsOneWidget);
+    final drinkReads = requests(sent, 'GET', '/drinks').length;
+
+    // The evening report claimed the two beers.
+    latest = {...latest, 'id': 46, 'summary_md': '## Evening report'};
+    drinks = {...drinks, 'count': 0, 'alcohol_grams': 0};
+    push.arrivalsIn.add(PushArrival(title: 'Fitness report ready', body: 'Rested.'));
+    await settleRequests(tester);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Evening report'), findsOneWidget);
+    expect(requests(sent, 'GET', '/drinks').length, drinkReads + 1);
+    expect(find.byTooltip('0 beers. Type a different number'), findsOneWidget);
   });
 }
