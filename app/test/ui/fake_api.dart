@@ -13,6 +13,7 @@ import 'package:fitness/ui/theme/palette.dart';
 import 'package:fitness_api/fitness_api.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 Map<String, Object?> _day(String date, {int? rhr, num? hrv, int? sleep, int? steps, num? weight}) => {
@@ -159,19 +160,21 @@ FitnessApi fakeApi(Map<String, Object?> responses, {int? status, List<Sent>? sen
 }
 
 /// The dashboard shell on a phone-sized screen, signed in, against [api];
-/// with [push], on a device that has push (by default it has none).
+/// with [push], on a device that has push (by default it has none), and
+/// any further provider [overrides].
 Future<void> pumpDashboard(
   WidgetTester tester,
   FitnessApi api, {
   PushService? push,
   Future<void> Function()? signOut,
+  List<Override> overrides = const [],
 }) async {
   tester.view.physicalSize = const Size(412 * 3, 915 * 3);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [apiProvider.overrideWithValue(api), pushServiceProvider.overrideWithValue(push)],
+      overrides: [apiProvider.overrideWithValue(api), pushServiceProvider.overrideWithValue(push), ...overrides],
       child: MaterialApp(
         theme: buildTheme(Palette.light, Brightness.light),
         home: DashboardShell(email: 'owner@example.com', signOut: signOut ?? () async {}),

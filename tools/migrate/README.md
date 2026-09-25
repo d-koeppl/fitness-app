@@ -81,3 +81,30 @@ compared too.
 | --- | --- | --- | --- |
 | 2026-09-25 | dump of 2026-09-25: 296 days, 426 sessions (28,281 heart-rate samples), 30 beers, 45 reports | 432, all 200 | 0 |
 | 2026-09-25 | same, `HEALTH_MAX_HR_BPM=190` (21 traces with derived zones, 62,759 s in zones) | 432, all 200 | 0 |
+
+## 5. Compare the coach's context (phase 7)
+
+The same two databases, asked for the coach's system prompt instead of the
+API's answers: every include switch off in turn, each History choice, and
+pinned workouts (with a trace, without one, a match no watch recorded, one
+that no longer exists, several at once), plus the history window every
+stored chat would send next. The preamble is left out, since it differs on
+purpose (ADR-035), and the JSON in each section is compared with sorted
+keys, because Postgres JSONB and Firestore order an object's keys
+differently. Values are compared as text, so `79` and `79.0` differ.
+
+```bash
+DATABASE_URL=postgresql+psycopg2://fitness:<pw>@localhost:5433/fitness_prod WAKE_FALLBACK_HOUR=18 \
+    <old-venv>/python tools/migrate/snapshot_coach_prompt.py old <fitness-dashboard checkout> dumps/coach-old.json
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 \
+    functions/venv/Scripts/python tools/migrate/snapshot_coach_prompt.py new functions dumps/coach-new.json --project demo-fitness-migration
+functions/venv/Scripts/python tools/migrate/compare_snapshots.py dumps/coach-old.json dumps/coach-new.json
+```
+
+Run from the old checkout's directory, so it reads that repo's `.env` as
+the old API does. Repeat with `HEALTH_MAX_HR_BPM=190` on both sides.
+
+| Date | Data | Cases | Differences |
+| --- | --- | --- | --- |
+| 2026-09-25 | dump of 2026-09-25 (b), first run | 20 prompts, 2 chat histories | 19: whole-number floats read back as ints (`79` for `79.0`), because the JSON export wrote them that way; fixed in the store, which now coerces them on read and write |
+| 2026-09-25 | same, after the fix, with and without `HEALTH_MAX_HR_BPM=190` | 20 prompts (7 with pinned workouts, up to 206 k characters), 2 chat histories | 0 |

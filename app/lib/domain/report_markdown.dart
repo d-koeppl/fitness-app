@@ -62,6 +62,21 @@ class MermaidBlock extends ReportBlock {
   String toString() => 'Mermaid($code)';
 }
 
+/// A ```chart block: the coach's chart as JSON (ADR-035), drawn by
+/// ui/charts/coach_chart.dart. Kept as source here; lib/domain/coach_chart.dart
+/// parses it.
+class ChartBlock extends ReportBlock {
+  const ChartBlock(this.source);
+  final String source;
+
+  @override
+  bool operator ==(Object other) => other is ChartBlock && other.source == source;
+  @override
+  int get hashCode => source.hashCode;
+  @override
+  String toString() => 'Chart($source)';
+}
+
 class CodeBlock extends ReportBlock {
   const CodeBlock(this.code, [this.lang]);
   final String code;
@@ -95,7 +110,7 @@ bool _listEq(List<String> a, List<String> b) {
   return true;
 }
 
-// A fenced code block: ```mermaid, ```, or ```<any other language>.
+// A fenced code block: ```chart, ```mermaid, ```, or ```<any other language>.
 final _fence = RegExp(r'^ {0,3}```\s*(\S*)\s*$');
 final _heading = RegExp(r'^ {0,3}(#{1,6})\s+(.*)$');
 final _bullet = RegExp(r'^\s*[-*]\s+(.*)$');
@@ -144,9 +159,14 @@ List<ReportBlock> parseReportBlocks(String md) {
         code.add(rawLines[i]);
         i++;
       }
-      blocks.add(
-        lang == 'mermaid' ? MermaidBlock(code.join('\n')) : CodeBlock(code.join('\n'), lang.isEmpty ? null : lang),
-      );
+      final body = code.join('\n');
+      blocks.add(switch (lang) {
+        'chart' => ChartBlock(body),
+        // Only in chats from the web app: the coach is no longer asked for
+        // Mermaid, and nothing here draws it (ADR-035).
+        'mermaid' => MermaidBlock(body),
+        _ => CodeBlock(body, lang.isEmpty ? null : lang),
+      });
       continue;
     }
 

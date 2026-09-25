@@ -152,6 +152,286 @@
         "title": "CalendarEventOut",
         "type": "object"
       },
+      "ChatMessageOut": {
+        "description": "One stored turn.\n\nAn output type only: since ADR-017 the client names a conversation\ninstead of replaying one, so nothing of this shape is ever parsed out of\na request body.",
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "content",
+          "created_at"
+        ],
+        "title": "ChatMessageOut",
+        "type": "object"
+      },
+      "ChatRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "client_message_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 8,
+                "pattern": "^[A-Za-z0-9_-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Message Id"
+          },
+          "content": {
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "include": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IncludeFlags"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lookback_days": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoachLookbackDays"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "session_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "maxLength": 64,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Ids"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "ChatRequest",
+        "type": "object"
+      },
+      "ChatResponse": {
+        "description": "The reply, plus the conversation it landed in \u2014 so a first message\nteaches the client the new id and the derived title in one round trip.",
+        "properties": {
+          "conversation": {
+            "$ref": "#/components/schemas/ConversationOut"
+          },
+          "message": {
+            "$ref": "#/components/schemas/ChatMessageOut"
+          },
+          "reply": {
+            "$ref": "#/components/schemas/ChatMessageOut"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/CoachUsageOut"
+          }
+        },
+        "required": [
+          "conversation",
+          "message",
+          "reply",
+          "usage"
+        ],
+        "title": "ChatResponse",
+        "type": "object"
+      },
+      "CoachLookbackDays": {
+        "description": "How far back the coach's health, workout and match data reaches, in days.",
+        "enum": [
+          14,
+          30,
+          90,
+          182,
+          365,
+          730
+        ],
+        "title": "CoachLookbackDays",
+        "type": "integer"
+      },
+      "CoachUsageOut": {
+        "description": "The whole day's Gemini budget, which the chat and the daily report\nshare (ADR-013). `used` counts every call the process made, not just\nchat messages, so `chat_remaining` moves when a report runs too.",
+        "properties": {
+          "chat_remaining": {
+            "title": "Chat Remaining",
+            "type": "integer"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/ModelUsageOut"
+            },
+            "title": "Models",
+            "type": "array"
+          },
+          "resets_at": {
+            "format": "date-time",
+            "title": "Resets At",
+            "type": "string"
+          },
+          "used": {
+            "title": "Used",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "used",
+          "limit",
+          "chat_remaining",
+          "resets_at",
+          "models"
+        ],
+        "title": "CoachUsageOut",
+        "type": "object"
+      },
+      "ConversationDetailOut": {
+        "description": "One chat, opened. `include` and `lookback_days` are the settings it is\nbeing held under, so reopening it restores the toggles rather than\nanswering the next turn from a different slice of the data than the turns\nabove it.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "include": {
+            "$ref": "#/components/schemas/IncludeFlags"
+          },
+          "lookback_days": {
+            "$ref": "#/components/schemas/CoachLookbackDays"
+          },
+          "message_count": {
+            "title": "Message Count",
+            "type": "integer"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/ChatMessageOut"
+            },
+            "title": "Messages",
+            "type": "array"
+          },
+          "session_ids": {
+            "items": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Session Ids",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "created_at",
+          "updated_at",
+          "message_count",
+          "include",
+          "lookback_days",
+          "session_ids",
+          "messages"
+        ],
+        "title": "ConversationDetailOut",
+        "type": "object"
+      },
+      "ConversationOut": {
+        "description": "A row in the chat picker. No messages \u2014 the list is opened far more\noften than any one thread is read.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "message_count": {
+            "title": "Message Count",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "created_at",
+          "updated_at",
+          "message_count"
+        ],
+        "title": "ConversationOut",
+        "type": "object"
+      },
       "DailyHealthOut": {
         "properties": {
           "active_zone_minutes": {
@@ -607,6 +887,43 @@
         "title": "HeartRateZoneOut",
         "type": "object"
       },
+      "IncludeFlags": {
+        "description": "The dashboard's \"Include in this chat\" toggles.\n\nA new flag defaults to True so that conversations stored before it\nexisted keep answering with everything on \u2014 `IncludeFlags(**conv.include)`\nfills the missing key rather than silently dropping the data out of a\nthread that was already being answered with it.",
+        "properties": {
+          "alcohol": {
+            "default": true,
+            "title": "Alcohol",
+            "type": "boolean"
+          },
+          "events": {
+            "default": true,
+            "title": "Events",
+            "type": "boolean"
+          },
+          "exercises": {
+            "default": true,
+            "title": "Exercises",
+            "type": "boolean"
+          },
+          "health": {
+            "default": true,
+            "title": "Health",
+            "type": "boolean"
+          },
+          "matches": {
+            "default": true,
+            "title": "Matches",
+            "type": "boolean"
+          },
+          "report": {
+            "default": true,
+            "title": "Report",
+            "type": "boolean"
+          }
+        },
+        "title": "IncludeFlags",
+        "type": "object"
+      },
       "LatestMeasurementsOut": {
         "description": "The last known value of each sparse metric (ADR-018).\n\nEvery field is optional and omitted when the metric has never been\nrecorded \u2014 an absent key is \"no reading ever\", which is not the same as\na reading of zero. The values here are deliberately not folded into\n`DailyHealthOut`: a daily row says what was measured *that day*, and a\ncarried-forward weight in that shape would make the charts draw a flat\nline through days nobody stood on the scale.",
         "properties": {
@@ -774,6 +1091,30 @@
           "kickoff"
         ],
         "title": "MissingMatchOut",
+        "type": "object"
+      },
+      "ModelUsageOut": {
+        "description": "One model's share of the day. Two configured models are two separate\nrequests-per-day budgets, and which one is spent is what says whether the\nfallback still has anywhere to go.",
+        "properties": {
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "used": {
+            "title": "Used",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "model",
+          "used",
+          "limit"
+        ],
+        "title": "ModelUsageOut",
         "type": "object"
       },
       "OAuthCallbackOut": {
@@ -1431,6 +1772,195 @@
         "summary": "List Upcoming Events",
         "tags": [
           "calendar"
+        ]
+      }
+    },
+    "/coach/chat": {
+      "post": {
+        "operationId": "sendCoachMessage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Send Coach Message",
+        "tags": [
+          "coach"
+        ]
+      }
+    },
+    "/coach/conversations": {
+      "get": {
+        "description": "The chat picker, most recently used first. The head of this list is\nwhat the tab resumes into when it is opened.",
+        "operationId": "listConversations",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConversationOut"
+                  },
+                  "title": "Response Listconversations",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Conversations",
+        "tags": [
+          "coach"
+        ]
+      }
+    },
+    "/coach/conversations/{conversation_id}": {
+      "delete": {
+        "operationId": "deleteConversation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Conversation",
+        "tags": [
+          "coach"
+        ]
+      },
+      "get": {
+        "operationId": "getConversation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Conversation",
+        "tags": [
+          "coach"
+        ]
+      }
+    },
+    "/coach/usage": {
+      "get": {
+        "description": "What the Coach tab shows above the conversation before a message is sent.",
+        "operationId": "getCoachUsage",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoachUsageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Coach Usage",
+        "tags": [
+          "coach"
         ]
       }
     },

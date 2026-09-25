@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/actions.dart';
+import '../data/coach.dart';
 import '../data/dashboard.dart';
 import '../data/push.dart';
 import '../domain/format.dart';
@@ -92,6 +93,8 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
     final sync = ref.watch(syncProvider);
     final push = ref.watch(pushProvider);
     ref.listen(pushProvider, _onPush);
+    // "Ask the coach about this session" on a workout's sheet.
+    ref.listen(coachProvider.select((s) => s.openRequests), (_, _) => _open(AppTab.coach));
     final p = Palette.of(context);
     if (state.accessDenied) {
       return _SignOutScreen(
@@ -197,6 +200,11 @@ class _TabPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // The coach fills the page instead of scrolling as one: its transcript
+    // scrolls inside itself, under a composer that stays put.
+    if (tab == AppTab.coach) {
+      return Padding(padding: EdgeInsets.fromLTRB(16, 0, 16, bottomGutter), child: const CoachTab());
+    }
     // Pull to re-read, as the five-minute refresh does; it does not sync.
     return RefreshIndicator(
       onRefresh: ref.read(dashboardProvider.notifier).refresh,
@@ -207,7 +215,7 @@ class _TabPage extends ConsumerWidget {
           AppTab.today => const TodayTab(),
           AppTab.fitness => const FitnessTab(),
           AppTab.health => const HealthTab(),
-          AppTab.coach => const CoachTab(),
+          AppTab.coach => const SizedBox.shrink(),
         },
       ),
     );

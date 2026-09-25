@@ -40,6 +40,25 @@ def test_health_round_trip_keeps_nulls_and_nested_arrays(store):
     assert store.health_day(date(2026, 9, 4)) is None
 
 
+def test_whole_number_floats_stay_floats(store):
+    """The migration's JSON export wrote 79.0 as 79. The coach's prompt is
+    text, so `"weight_kg": 79` there against `79.0` on the old stack was a
+    real difference (found by tools/migrate/snapshot_coach_prompt.py)."""
+    store.put_health_days([DailyHealth(date=date(2026, 9, 3), weight_kg=79, hrv_ms=102, steps=5)])
+    row = store.health_day(date(2026, 9, 3))
+    assert (repr(row.weight_kg), repr(row.hrv_ms), repr(row.steps)) == ("79.0", "102.0", "5")
+
+
+def test_whole_number_floats_stored_as_ints_read_back_as_floats(store):
+    """Production was imported before the fix above, so the read side
+    coerces too: re-importing is not what makes the numbers right."""
+    store._db.collection("health_months").document("2026-09").set(
+        {"days": {"2026-09-03": {"weight_kg": 79, "vo2max": 51, "raw": "{}"}}}
+    )
+    row = store.health_day(date(2026, 9, 3))
+    assert (repr(row.weight_kg), repr(row.vo2max)) == ("79.0", "51.0")
+
+
 def test_rewriting_a_day_clears_a_field_that_went_null(store):
     store.put_health_days([DailyHealth(date=date(2026, 9, 3), weight_kg=80.0, steps=5)])
     store.put_health_days([DailyHealth(date=date(2026, 9, 3), steps=6)])

@@ -3,6 +3,7 @@ build.yaml
 lib/fitness_api.dart
 lib/src/api.dart
 lib/src/api/calendar_api.dart
+lib/src/api/coach_api.dart
 lib/src/api/drinks_api.dart
 lib/src/api/health_api.dart
 lib/src/api/matches_api.dart
@@ -20,6 +21,13 @@ lib/src/auth/oauth.dart
 lib/src/deserialize.dart
 lib/src/model/ai_report_out.dart
 lib/src/model/calendar_event_out.dart
+lib/src/model/chat_message_out.dart
+lib/src/model/chat_request.dart
+lib/src/model/chat_response.dart
+lib/src/model/coach_lookback_days.dart
+lib/src/model/coach_usage_out.dart
+lib/src/model/conversation_detail_out.dart
+lib/src/model/conversation_out.dart
 lib/src/model/daily_health_out.dart
 lib/src/model/day_point_out.dart
 lib/src/model/drink_count_in.dart
@@ -30,11 +38,13 @@ lib/src/model/google_status_out.dart
 lib/src/model/health.dart
 lib/src/model/heart_rate_zone_out.dart
 lib/src/model/http_validation_error.dart
+lib/src/model/include_flags.dart
 lib/src/model/latest_measurements_out.dart
 lib/src/model/match_out.dart
 lib/src/model/me.dart
 lib/src/model/measurement_out.dart
 lib/src/model/missing_match_out.dart
+lib/src/model/model_usage_out.dart
 lib/src/model/o_auth_callback_out.dart
 lib/src/model/o_auth_login_out.dart
 lib/src/model/push_device_in.dart

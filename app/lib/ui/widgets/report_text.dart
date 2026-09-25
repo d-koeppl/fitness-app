@@ -2,13 +2,17 @@
 // fitness-dashboard's RichText (web/components/ui.tsx). Parsing lives in
 // lib/domain/report_markdown.dart.
 //
-// Not yet ported: KaTeX math and Mermaid diagrams (phase 7, where the coach
-// is what writes them). Until then a math span shows its LaTeX in a
-// monospace run and a diagram shows its source as a code block.
+// Math is real LaTeX (flutter_math_fork), as KaTeX drew it on the web; a
+// formula it cannot parse falls back to its source in a monospace run. The
+// coach's ```chart blocks are drawn by ui/charts/coach_chart.dart (ADR-035).
+// Mermaid, which the web drew, only survives in chats written there, and is
+// shown as its source under a line saying so.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 
 import '../../domain/report_markdown.dart';
+import '../charts/coach_chart.dart';
 import '../theme/palette.dart';
 
 class ReportText extends StatelessWidget {
@@ -21,27 +25,52 @@ class ReportText extends StatelessWidget {
     final p = Palette.of(context);
     final body = TypeScale.bodyLarge.copyWith(color: p.onSurfaceVariant);
 
+    Widget math(InlineRun run, TextStyle base) => Math.tex(
+      run.text,
+      mathStyle: run.display ? MathStyle.display : MathStyle.text,
+      textStyle: base.copyWith(color: p.onSurface),
+      onErrorFallback: (_) => Text(run.text, style: base.copyWith(fontFamily: 'monospace')),
+    );
+
     TextSpan inline(String text, TextStyle base) => TextSpan(
       style: base,
       children: [
         for (final run in parseInline(text))
-          TextSpan(
-            text: run.text,
-            style: run.math
-                ? const TextStyle(fontFamily: 'monospace')
-                : run.bold
-                ? TextStyle(fontWeight: FontWeight.w700, color: p.onSurface)
-                : run.italic
-                ? const TextStyle(fontStyle: FontStyle.italic)
-                : null,
-          ),
+          run.math
+              ? WidgetSpan(alignment: PlaceholderAlignment.middle, child: math(run, base))
+              : TextSpan(
+                  text: run.text,
+                  style: run.bold
+                      ? TextStyle(fontWeight: FontWeight.w700, color: p.onSurface)
+                      : run.italic
+                      ? const TextStyle(fontStyle: FontStyle.italic)
+                      : null,
+                ),
       ],
     );
+
+    // A paragraph that is one `$$...$$` formula is a block of its own,
+    // centred and scrolling sideways rather than wrapping mid-formula.
+    Widget paragraph(String text) {
+      final runs = parseInline(text);
+      if (runs.length == 1 && runs.single.math && runs.single.display) {
+        return Center(
+          child: SingleChildScrollView(scrollDirection: Axis.horizontal, child: math(runs.single, body)),
+        );
+      }
+      return Text.rich(inline(text, body));
+    }
 
     Widget codeBox(String source) => Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: p.surfaceContainerHigh, borderRadius: BorderRadius.circular(Shape.lg)),
+      // Bordered, like a table: inside a coach reply the bubble is this
+      // same colour, and the box would vanish into it.
+      decoration: BoxDecoration(
+        color: p.surfaceContainerHigh,
+        border: Border.all(color: p.outlineVariant),
+        borderRadius: BorderRadius.circular(Shape.lg),
+      ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Text(
@@ -58,7 +87,7 @@ class ReportText extends StatelessWidget {
         HeadingBlock(:final level, :final text) => Text.rich(
           inline(text, (level <= 2 ? TypeScale.titleLarge : TypeScale.titleMedium).copyWith(color: p.onSurface)),
         ),
-        ParagraphBlock(:final text) => Text.rich(inline(text, body)),
+        ParagraphBlock(:final text) => paragraph(text),
         ListBlock(:final items) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -81,7 +110,18 @@ class ReportText extends StatelessWidget {
           ],
         ),
         TableBlock(:final headers, :final rows) => _Table(headers: headers, rows: rows, cell: inline),
-        MermaidBlock(:final code) => codeBox(code),
+        ChartBlock(:final source) => CoachChartView(source: source, fallback: codeBox),
+        MermaidBlock(:final code) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'A diagram from the web app, which this app does not draw:',
+              style: TypeScale.labelMedium.copyWith(color: p.onSurfaceVariant),
+            ),
+            const SizedBox(height: 6),
+            codeBox(code),
+          ],
+        ),
         CodeBlock(:final code) => codeBox(code),
       });
     }

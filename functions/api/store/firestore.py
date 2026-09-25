@@ -17,6 +17,7 @@ Layout, and why:
 | `reports` | `<id>` | one AiReport |
 | `drinks` | `<id>` | one DrinkLog |
 | `conversations/<id>/messages` | `<id>` | a Conversation and its messages |
+| `chat_requests` | the client's message id | what a coach message was answered with, for resends |
 | `gemini_usage` | `YYYY-MM-DD` (Pacific) | `requests.<model>` → count |
 | `oauth_tokens` | `<provider>` | one OAuthToken |
 | `push_devices` | SHA-256 of the FCM token | one PushDevice |
@@ -77,6 +78,11 @@ _HEALTH_FIELDS = (
     "weight_kg",
     "vo2max",
 )
+# Declared float on DailyHealth. Firestore keeps whatever numeric type it is
+# handed, and the migration's JSON export wrote a whole 79.0 as 79, so these
+# are coerced both ways: an int here reads as `79` rather than `79.0` in the
+# coach's prompt and in the API's JSON, where Postgres always said `79.0`.
+_HEALTH_FLOAT_FIELDS = ("hrv_ms", "weight_kg", "vo2max")
 
 
 # --- value conversions ------------------------------------------------------
@@ -150,8 +156,18 @@ def _doc_id(value: str) -> str:
 # --- row <-> document ---------------------------------------------------------
 
 
+def _as_float(value):
+    return float(value) if isinstance(value, int) and not isinstance(value, bool) else value
+
+
+def _health_values(values: dict) -> dict:
+    return {
+        name: _as_float(value) if name in _HEALTH_FLOAT_FIELDS else value for name, value in values.items()
+    }
+
+
 def _health_to_doc(row: DailyHealth) -> dict:
-    doc = {name: getattr(row, name) for name in _HEALTH_FIELDS}
+    doc = _health_values({name: getattr(row, name) for name in _HEALTH_FIELDS})
     doc.update(source=row.source, raw=_json(row.raw), updated_at=_ts(row.updated_at) or datetime.now(UTC))
     return doc
 
@@ -159,7 +175,7 @@ def _health_to_doc(row: DailyHealth) -> dict:
 def _health_from_doc(day: str, doc: dict) -> DailyHealth:
     return DailyHealth(
         date=date.fromisoformat(day),
-        **{name: doc.get(name) for name in _HEALTH_FIELDS},
+        **_health_values({name: doc.get(name) for name in _HEALTH_FIELDS}),
         source=doc.get("source", "google_health"),
         raw=json.loads(doc.get("raw") or "{}"),
         updated_at=_parse_ts(doc.get("updated_at")),
@@ -769,9 +785,113 @@ class FirestoreStore:
         batch = self._db.batch()
         for message in ref.collection("messages").list_documents():
             batch.delete(message)
+        # The resend records that point into it: replaying one would answer
+        # with a chat that no longer exists. A single-field query.
+        for request in (
+            self._db.collection("chat_requests")
+            .where(filter=FieldFilter("conversation_id", "==", conversation_id))
+            .stream()
+        ):
+            batch.delete(request.reference)
         batch.delete(ref)
         batch.commit()
         return True
+
+    def put_turn(
+        self,
+        conversation: Conversation,
+        question: ConversationMessage,
+        reply: ConversationMessage,
+        client_message_id: str | None = None,
+    ) -> None:
+        """One coach turn in one batch: the conversation (its `updated_at`
+        and `message_count` moved), both messages and, when the client named
+        the request, the record a resend is answered from. All or nothing,
+        so the transcript never holds a question with no answer under it and
+        the count never disagrees with the messages."""
+        ref = self._db.collection("conversations").document(str(conversation.id))
+        batch = self._db.batch()
+        batch.set(
+            ref,
+            {
+                "id": conversation.id,
+                "title": conversation.title,
+                "created_at": _ts(conversation.created_at),
+                "updated_at": _ts(conversation.updated_at),
+                "include": dict(conversation.include),
+                "lookback_days": conversation.lookback_days,
+                "session_ids": list(conversation.session_ids),
+                "message_count": conversation.message_count,
+            },
+        )
+        for row in (question, reply):
+            batch.set(
+                ref.collection("messages").document(str(row.id)),
+                {
+                    "id": row.id,
+                    "conversation_id": row.conversation_id,
+                    "role": row.role,
+                    "content": row.content,
+                    "created_at": _ts(row.created_at),
+                },
+            )
+        if client_message_id is not None:
+            batch.set(
+                self._db.collection("chat_requests").document(_doc_id(client_message_id)),
+                {
+                    "status": "done",
+                    "conversation_id": conversation.id,
+                    "question_id": question.id,
+                    "reply_id": reply.id,
+                    "updated_at": datetime.now(UTC),
+                },
+            )
+        batch.commit()
+
+    def message(self, conversation_id: int, message_id: int) -> ConversationMessage | None:
+        snapshot = (
+            self._db.collection("conversations")
+            .document(str(conversation_id))
+            .collection("messages")
+            .document(str(message_id))
+            .get()
+        )
+        return _message_from_doc(snapshot.to_dict()) if snapshot.exists else None
+
+    # --- coach resends ------------------------------------------------------------
+
+    def claim_chat_request(self, client_message_id: str, stale_before: datetime) -> dict | None:
+        """Mark a coach message as being answered, unless it already was.
+
+        Returns None when the caller now owns it and should ask Gemini. A
+        finished record comes back as a dict (`status` "done", with the ids
+        to answer from), and so does one still being answered (`status`
+        "pending") — unless it was claimed before `stale_before`, which
+        means the function that claimed it died, and the claim passes over.
+        One transaction, so two copies of the same message arriving together
+        cannot both reach Gemini."""
+        ref = self._db.collection("chat_requests").document(_doc_id(client_message_id))
+
+        @firestore.transactional
+        def claim(transaction) -> dict | None:
+            snapshot = ref.get(transaction=transaction)
+            if snapshot.exists:
+                doc = snapshot.to_dict()
+                started = _parse_ts(doc.get("updated_at"))
+                if doc.get("status") == "done" or (started is not None and started >= stale_before):
+                    return doc
+            transaction.set(ref, {"status": "pending", "updated_at": datetime.now(UTC)})
+            return None
+
+        return claim(self._db.transaction())
+
+    def chat_request_done(self, client_message_id: str) -> bool:
+        snapshot = self._db.collection("chat_requests").document(_doc_id(client_message_id)).get()
+        return snapshot.exists and snapshot.to_dict().get("status") == "done"
+
+    def release_chat_request(self, client_message_id: str) -> None:
+        """Drop a pending claim whose answer failed, so a resend asks again."""
+        self._db.collection("chat_requests").document(_doc_id(client_message_id)).delete()
 
     # --- OAuth tokens -------------------------------------------------------------
 

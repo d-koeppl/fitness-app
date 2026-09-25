@@ -115,6 +115,10 @@ class Settings(BaseSettings):
     # --- workouts attached to a chat (ADR-021) ----------------------------
     coach_max_attached_sessions: int = 10
     coach_session_hr_max_samples: int = 3000
+    # How long a coach message may stay "being answered" before a resend
+    # takes it over (ADR-035). Just over the api function's 300 s timeout:
+    # past that, the function that claimed it can no longer be running.
+    coach_request_stale_seconds: int = 330
 
     # --- schedule (ADR-004, ADR-028) --------------------------------------
     # End-of-day safety net: if nothing produced a report by this local
