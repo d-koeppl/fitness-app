@@ -16,6 +16,7 @@ api/config.py already looks.
 from __future__ import annotations
 
 import functools
+import logging
 from datetime import datetime
 
 from a2wsgi import ASGIMiddleware
@@ -29,6 +30,13 @@ from api.main import app as fastapi_app
 # function-to-database traffic stays in region. max_instances caps what a
 # runaway client or retry loop can spend; one user never needs more.
 options.set_global_options(region="europe-west1", max_instances=3)
+
+# Python's root logger drops INFO, so the hourly job's one-line summary of
+# what each source did never reached Cloud Logging (first deploy,
+# 2026-09-25). Errors were already visible; this makes a good run visible
+# too.
+logging.getLogger("api").setLevel(logging.INFO)
+logging.basicConfig(format="%(levelname)s %(name)s: %(message)s")
 
 GOOGLE_SECRETS = [
     SecretParam("TOKEN_ENCRYPTION_KEY"),

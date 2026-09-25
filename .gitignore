@@ -36,3 +36,6 @@ pubsub-debug.log
 *.iml
 .DS_Store
 Thumbs.db
+
+# Scratch output of tool/generate_api_client.sh
+/build/

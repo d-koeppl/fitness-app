@@ -13,8 +13,11 @@ branch and open a pull request.
 ## Checks
 
 CI runs all of these on every pull request
-([.github/workflows/ci.yml](.github/workflows/ci.yml)); run them locally
-before pushing:
+([.github/workflows/ci.yml](.github/workflows/ci.yml)), plus a web
+build; run them locally before pushing. The two slow checks only run when
+their inputs change: the generated-client diff (schema, generator, the
+package) and the Android build (`app/android/`, `pubspec`, the workflow).
+A push to main runs everything.
 
 ```bash
 cd functions && venv/Scripts/python -m ruff check . && venv/Scripts/python -m pytest
@@ -47,7 +50,11 @@ Firebase looks for the virtualenv at exactly that path.
   touching it.
 - **`openapi/openapi.json`** is a snapshot. After changing a route, run
   `python -m tools.export_openapi` from `functions/`; a test fails until
-  you do.
+  you do. Then run `tool/generate_api_client.sh` (needs Java and Node) to
+  regenerate the Dart client in `app/packages/fitness_api`; CI fails
+  until you do ([ADR-032](docs/adr/032-flutter-client-state-and-api.md)).
+  Never edit that package's `lib/` by hand. Operation ids are the
+  handler's function name in camelCase, which is the Dart method name.
 - **Firestore** is reached only by the functions, and inside them only by
   `functions/api/store/firestore.py` ([ADR-031](docs/adr/031-firestore-layout.md)).
   Services call its methods; none imports the Firestore client.
@@ -57,8 +64,13 @@ Firebase looks for the virtualenv at exactly that path.
   fails in production. Filter further in Python instead.
 - **`functions/api/analysis/training_load.py` is pure** and has no I/O, as
   in fitness-dashboard. It is where a wrong number stays invisible longest.
-- **Flutter app** (`app/lib/`): `api/` client code, `domain/` pure logic
-  ported from `web/lib/` with its tests, `data/` state, `ui/` widgets.
+- **Flutter app** (`app/lib/`): `api/` the token interceptor and base
+  URL, `domain/` pure logic ported from `web/lib/` with its tests (no
+  Flutter imports, no colours), `data/` Riverpod providers, `ui/` widgets.
+  Colours come from `Palette.of(context)` (`ui/theme/palette.dart`, the
+  web's tokens), never literals. Numbers and dates must read exactly as
+  the web app's en-GB output does; use the helpers in `domain/format.dart`
+  (`jsRound`, not `round()`).
 
 ## Running locally
 

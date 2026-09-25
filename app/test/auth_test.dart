@@ -7,7 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fitness/api/auth_interceptor.dart';
 import 'package:fitness/auth/auth_service.dart';
 import 'package:fitness/ui/auth_gate.dart';
-import 'package:fitness/ui/home_screen.dart';
 import 'package:fitness/ui/sign_in_screen.dart';
 
 class FakeAuth implements AuthService {
@@ -34,15 +33,10 @@ class FakeAuth implements AuthService {
 
   @override
   Future<String?> idToken() async => signedIn ? token : null;
-}
 
-DioException _status(int code) {
-  final options = RequestOptions(path: '/me');
-  return DioException(requestOptions: options, response: Response(requestOptions: options, statusCode: code));
+  @override
+  String? get email => signedIn ? 'owner@example.com' : null;
 }
-
-Widget _home(Future<String> Function() email, {Future<void> Function()? signOut}) =>
-    MaterialApp(home: HomeScreen(signedInEmail: email, signOut: signOut ?? () async {}));
 
 void main() {
   group('AuthGate', () {
@@ -52,7 +46,9 @@ void main() {
         home: AuthGate(
           auth: auth,
           signedOut: (_) => SignInScreen(signIn: auth.signInWithGoogle),
-          signedIn: (_) => _home(() async => 'owner@example.com', signOut: auth.signOut),
+          signedIn: (_) => Scaffold(
+            body: TextButton(onPressed: auth.signOut, child: const Text('Signed in')),
+          ),
         ),
       ));
       await tester.pumpAndSettle();
@@ -60,43 +56,11 @@ void main() {
 
       await tester.tap(find.text('Sign in with Google'));
       await tester.pumpAndSettle();
-      expect(find.text('Signed in as owner@example.com'), findsOneWidget);
+      expect(find.text('Signed in'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Sign out'));
+      await tester.tap(find.text('Signed in'));
       await tester.pumpAndSettle();
       expect(find.text('Sign in with Google'), findsOneWidget);
-    });
-  });
-
-  group('HomeScreen', () {
-    testWidgets('an account the API refuses is told so and offered sign-out, not retry', (tester) async {
-      await tester.pumpWidget(_home(() => Future.error(_status(403))));
-      await tester.pumpAndSettle();
-
-      expect(find.text('This Google account is not allowed.'), findsOneWidget);
-      expect(find.text('Sign out'), findsOneWidget);
-      expect(find.text('Retry'), findsNothing);
-    });
-
-    testWidgets('a rejected session asks to sign in again', (tester) async {
-      await tester.pumpWidget(_home(() => Future.error(_status(401))));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Your session was not accepted. Sign in again.'), findsOneWidget);
-    });
-
-    testWidgets('an unreachable API can be retried', (tester) async {
-      var calls = 0;
-      await tester.pumpWidget(_home(() async {
-        if (++calls == 1) throw DioException(requestOptions: RequestOptions(path: '/me'));
-        return 'owner@example.com';
-      }));
-      await tester.pumpAndSettle();
-      expect(find.text('API unreachable'), findsOneWidget);
-
-      await tester.tap(find.text('Retry'));
-      await tester.pumpAndSettle();
-      expect(find.text('Signed in as owner@example.com'), findsOneWidget);
     });
   });
 

@@ -1,0 +1,6 @@
+# Nothing here is read by the app; the API is documented by openapi/openapi.json.
+doc/**
+test/**
+README.md
+.gitignore
+pubspec.yaml

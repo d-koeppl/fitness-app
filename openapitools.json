@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/@openapitools/openapi-generator-cli/config.schema.json",
+  "spaces": 2,
+  "generator-cli": {
+    "version": "7.14.0",
+    "generators": {
+      "fitness_api": {
+        "generatorName": "dart-dio",
+        "inputSpec": "build/openapi-for-dart.json",
+        "output": "app/packages/fitness_api",
+        "additionalProperties": {
+          "pubName": "fitness_api",
+          "pubDescription": "Generated client for the Fitness API. Do not edit; see tool/generate_api_client.sh.",
+          "serializationLibrary": "json_serializable",
+          "dateLibrary": "core",
+          "enumUnknownDefaultCase": true
+        }
+      }
+    }
+  }
+}
