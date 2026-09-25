@@ -339,6 +339,13 @@ void main() {
     });
   });
 
+  group('fmtDayFull', () {
+    test('writes the day out with its year, for a date that could be any year', () {
+      expect(fmtDayFull(DateTime(2019, 7, 20)), 'Sat, 20 Jul 2019');
+      expect(fmtDayFull(DateTime(2026, 9, 12)), 'Sat, 12 Sept 2026');
+    });
+  });
+
   group('fmtDrinkVolume', () {
     test('says what the count comes to', () => expect(fmtDrinkVolume(3, 0.5), '1.5 L'));
     test('does not write a round total as 2.0 L', () => expect(fmtDrinkVolume(4, 0.5), '2 L'));

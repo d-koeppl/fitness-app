@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/actions.dart';
 import '../data/dashboard.dart';
 import '../domain/format.dart';
 import 'tabs/coach_tab.dart';
@@ -45,33 +46,15 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
   // back is instant and keeps its scroll position.
   final Set<AppTab> _opened = {AppTab.today};
 
-  bool _syncing = false;
-  String? _syncError;
-
   void _open(AppTab tab) => setState(() {
     _tab = tab;
     _opened.add(tab);
   });
 
-  /// The header chip (ADR-026): pull Google fresh, then re-read.
-  Future<void> _syncNow() async {
-    if (_syncing) return;
-    setState(() {
-      _syncing = true;
-      _syncError = null;
-    });
-    final problem = await ref.read(dashboardProvider.notifier).syncNow();
-    if (mounted) {
-      setState(() {
-        _syncing = false;
-        _syncError = problem;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(dashboardProvider);
+    final sync = ref.watch(syncProvider);
     final p = Palette.of(context);
     if (state.accessDenied) {
       return _SignOutScreen(
@@ -102,19 +85,20 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: _Header(
                 wide: wide,
-                busy: state.loading || _syncing,
+                busy: state.loading || sync.syncing,
                 lastSynced: state.lastSynced,
                 email: widget.email,
-                onSync: _syncNow,
+                // The header chip (ADR-026): pull Google fresh, then re-read.
+                onSync: ref.read(syncProvider.notifier).syncNow,
                 signOut: widget.signOut,
               ),
             ),
-            if (_syncError != null)
+            if (sync.problem != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: Text(_syncError!, style: TypeScale.labelSmall.copyWith(color: p.error.color)),
+                  child: Text(sync.problem!, style: TypeScale.labelSmall.copyWith(color: p.error.color)),
                 ),
               ),
             const SizedBox(height: 16),

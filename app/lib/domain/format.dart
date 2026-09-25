@@ -15,10 +15,10 @@ const int stepGoal = 10000;
 
 const String dash = '—';
 
-const _weekdaysShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const weekdaysShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const _weekdaysNarrow = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 // en-GB's short month names. September is "Sept" there, unlike en-US.
-const _monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
 
 /// JavaScript's Math.round: halves go up, towards +∞. Dart's `round()`
 /// takes them away from zero, so -2.5 would become -3 where the web shows -2.
@@ -41,7 +41,7 @@ DateTime local(DateTime value) => value.isUtc ? value.toLocal() : value;
 String fmtDate(DateTime? value) {
   if (value == null) return 'TBD';
   final d = local(value);
-  return '${_weekdaysShort[d.weekday - 1]} ${_two(d.day)} ${_monthsShort[d.month - 1]}';
+  return '${weekdaysShort[d.weekday - 1]} ${_two(d.day)} ${monthsShort[d.month - 1]}';
 }
 
 /// "07:52", the local clock time.
@@ -141,11 +141,16 @@ Reading? currentReading(num? todaysValue, DateTime? todaysDate, MeasurementOut? 
 /// Tile subtitle for a carried-forward reading: "Weight · 29 Aug".
 String withMeasuredOn(String name, DateTime date) {
   final d = local(date);
-  return '$name · ${d.day} ${_monthsShort[d.month - 1]}';
+  return '$name · ${d.day} ${monthsShort[d.month - 1]}';
 }
 
 /// What a beer count comes to: "1.5 L", "4 L". The size comes from the
 /// server (ADR-019), and a round total is not written "2.0 L".
+/// "Sat, 20 Jul 2019" — a day that could be in any year, as the beer
+/// sheet's day picker confirms it.
+String fmtDayFull(DateTime day) =>
+    '${weekdaysShort[day.weekday - 1]}, ${day.day} ${monthsShort[day.month - 1]} ${day.year}';
+
 String fmtDrinkVolume(int count, num volumeL) {
   final litres = count * volumeL;
   final whole = (litres - litres.roundToDouble()).abs() < 1e-9;

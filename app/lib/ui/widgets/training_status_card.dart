@@ -8,9 +8,12 @@ import '../theme/palette.dart';
 import 'metrics.dart';
 
 class TrainingStatusCard extends StatelessWidget {
-  const TrainingStatusCard({super.key, required this.data});
+  const TrainingStatusCard({super.key, required this.data, required this.onOpenDetail});
 
   final TrainingStatusOut data;
+
+  /// Open the training-load sheet; the chart is the button.
+  final VoidCallback onOpenDetail;
 
   @override
   Widget build(BuildContext context) {
@@ -74,9 +77,20 @@ class TrainingStatusCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            // The performance-management chart. Tapping it opens the history
-            // sheet in phase 5.
-            LoadChart(series: data.series),
+            // The performance-management chart, and the way in to its sheet.
+            Semantics(
+              button: true,
+              label: 'Open training load history',
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(Shape.md),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: onOpenDetail,
+                  child: LoadChart(series: data.series),
+                ),
+              ),
+            ),
             if (recovery != null) ...[
               const SizedBox(height: 12),
               _RecoveryBar(recovery: recovery, parts: data.recoveryParts),

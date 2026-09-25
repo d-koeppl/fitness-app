@@ -2,6 +2,7 @@
 // from, ported from fitness-dashboard's web/components/metrics.tsx.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../domain/format.dart';
 import '../theme/palette.dart';
@@ -9,7 +10,7 @@ import 'common.dart';
 
 /// A tonal pill tile: an icon disc, a big value and a label. [progress]
 /// (0–1) paints a fill behind the content, as the steps tile does. With
-/// [onTap] it becomes a button (the detail sheets arrive in phase 5).
+/// [onTap] it becomes a button that opens the metric's sheet.
 class MetricTile extends StatelessWidget {
   const MetricTile({
     super.key,
@@ -112,52 +113,184 @@ class TilePill extends StatelessWidget {
   }
 }
 
-/// The beer counter as a tile (ADR-019), read-only until phase 5 brings the
-/// stepper and the Beer sheet: the count in the disc, the litres under the
-/// label.
-class DrinkTile extends StatelessWidget {
-  const DrinkTile({super.key, required this.tone, required this.count, required this.volumeL});
+/// The beer counter as a tile (ADR-019).
+///
+/// The count takes the disc the other tiles use for their icon, because on
+/// this one the number *is* the metric — and it doubles as the way in to
+/// typing one: eleven beers is a number you enter, not a number you tap to.
+/// Minus and plus sit at the trailing edge; the rest of the tile opens the
+/// Beer sheet with the days gone by.
+class DrinkTile extends StatefulWidget {
+  const DrinkTile({
+    super.key,
+    required this.tone,
+    required this.count,
+    required this.volumeL,
+    required this.onAdd,
+    required this.onUndo,
+    required this.onSet,
+    required this.onOpenHistory,
+  });
 
   final Tone tone;
 
-  /// Null until the counter first arrives.
+  /// Null until the counter first arrives. The controls stay put and go
+  /// inert rather than appearing late under a thumb already on its way.
   final int? count;
   final num? volumeL;
+  final VoidCallback onAdd;
+  final VoidCallback onUndo;
+  final ValueChanged<int> onSet;
+
+  /// Unlike the stepper this does not wait for the counter: the sheet reads
+  /// its own history.
+  final VoidCallback onOpenHistory;
+
+  @override
+  State<DrinkTile> createState() => _DrinkTileState();
+}
+
+class _DrinkTileState extends State<DrinkTile> {
+  final _typed = TextEditingController();
+  final _focus = FocusNode();
+  bool _editing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() {
+      if (!_focus.hasFocus && _editing) _commit();
+    });
+  }
+
+  @override
+  void dispose() {
+    _typed.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _startEditing() {
+    // The field opens empty with the count as its hint, so typing replaces
+    // rather than appends.
+    _typed.text = '';
+    setState(() => _editing = true);
+    _focus.requestFocus();
+  }
+
+  /// Closing without typing means "leave it alone", as does anything
+  /// unparseable: the counter is not something to zero by accident.
+  void _commit() {
+    final next = int.tryParse(_typed.text);
+    setState(() => _editing = false);
+    if (next != null && next >= 0 && next != widget.count) widget.onSet(next > 99 ? 99 : next);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final sub = count != null && count! > 0 && volumeL != null ? fmtDrinkVolume(count!, volumeL!) : null;
-    return TilePill(
-      background: tone.bg,
-      child: Row(
-        children: [
-          Container(
+    final tone = widget.tone;
+    final count = widget.count;
+    final loaded = count != null;
+    final sub = loaded && count > 0 && widget.volumeL != null ? fmtDrinkVolume(count, widget.volumeL!) : null;
+    final countStyle = (loaded && count > 99 ? TypeScale.titleMedium : TypeScale.headlineSmall).copyWith(
+      color: tone.fg,
+      fontWeight: FontWeight.w700,
+      fontFeatures: TypeScale.tabular,
+    );
+
+    Widget step(IconData icon, String tooltip, VoidCallback? onPressed) => IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      style: IconButton.styleFrom(
+        backgroundColor: tone.chip,
+        foregroundColor: tone.fg,
+        disabledBackgroundColor: tone.chip.withValues(alpha: 0.5),
+        disabledForegroundColor: tone.fg.withValues(alpha: 0.4),
+        fixedSize: const Size(36, 36),
+        minimumSize: const Size(36, 36),
+        padding: EdgeInsets.zero,
+      ),
+      icon: Icon(icon, size: 18),
+    );
+
+    final disc = _editing
+        ? Container(
             width: 40,
             height: 40,
             alignment: Alignment.center,
-            margin: const EdgeInsets.only(left: 2),
-            decoration: BoxDecoration(color: tone.chip, shape: BoxShape.circle),
-            child: Text(
-              count?.toString() ?? dash,
-              style: (count != null && count! > 99 ? TypeScale.titleMedium : TypeScale.headlineSmall).copyWith(
-                color: tone.fg,
-                fontWeight: FontWeight.w700,
-                fontFeatures: TypeScale.tabular,
+            // Drawn inside the disc, so the field reads as the same round
+            // chip in a different state.
+            decoration: BoxDecoration(
+              color: tone.chip,
+              shape: BoxShape.circle,
+              border: Border.all(color: tone.fg, width: 2),
+            ),
+            child: TextField(
+              controller: _typed,
+              focusNode: _focus,
+              textAlign: TextAlign.center,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(2)],
+              onSubmitted: (_) => _commit(),
+              style: countStyle,
+              decoration: InputDecoration(
+                hintText: '$count',
+                hintStyle: countStyle.copyWith(color: tone.fg.withValues(alpha: 0.35)),
+                border: InputBorder.none,
+                filled: false,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
               ),
             ),
-          ),
+          )
+        : Tooltip(
+            message: '${count ?? 0} beers. Type a different number',
+            child: Material(
+              color: tone.chip,
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: loaded ? _startEditing : null,
+                child: SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Center(child: Text(loaded ? '$count' : dash, style: countStyle)),
+                ),
+              ),
+            ),
+          );
+
+    return TilePill(
+      background: tone.bg,
+      onTap: _editing ? null : widget.onOpenHistory,
+      child: Row(
+        children: [
+          Padding(padding: const EdgeInsets.only(left: 2), child: disc),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Beer', maxLines: 1, style: TypeScale.labelLarge.copyWith(color: tone.fg)),
+                Text(
+                  'Beer',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TypeScale.labelLarge.copyWith(color: tone.fg),
+                ),
                 if (sub != null)
-                  Text(sub, maxLines: 1, style: TypeScale.labelSmall.copyWith(color: tone.fg.withValues(alpha: 0.85))),
+                  Text(
+                    sub,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TypeScale.labelSmall.copyWith(color: tone.fg.withValues(alpha: 0.85)),
+                  ),
               ],
             ),
           ),
+          step(Icons.remove, 'One fewer beer', loaded && count > 0 ? widget.onUndo : null),
+          const SizedBox(width: 2),
+          step(Icons.add, 'One more beer', loaded ? widget.onAdd : null),
         ],
       ),
     );
@@ -259,6 +392,7 @@ class MetricChartCard extends StatelessWidget {
     required this.color,
     required this.band,
     required this.chip,
+    this.onTap,
   });
 
   final String title;
@@ -269,51 +403,61 @@ class MetricChartCard extends StatelessWidget {
   final Color band;
   final String chip;
 
+  /// Opens the metric's sheet.
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: p.surface, borderRadius: BorderRadius.circular(Shape.xl)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: TypeScale.titleSmall.copyWith(color: p.onSurfaceVariant)),
-          const SizedBox(height: 4),
-          Text(value, style: TypeScale.headlineSmall.copyWith(color: p.onSurface)),
-          const SizedBox(height: 12),
-          MiniChart(values: values, color: color, band: band),
-          const SizedBox(height: 4),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                for (final (i, d) in dates.indexed)
-                  Container(
-                    width: 18,
-                    height: 18,
-                    alignment: Alignment.center,
-                    decoration: i == dates.length - 1
-                        ? BoxDecoration(color: p.surfaceContainerHighest, shape: BoxShape.circle)
-                        : null,
-                    child: Text(
-                      weekdayNarrow(d),
-                      style: TypeScale.labelMedium.copyWith(
-                        color: i == dates.length - 1 ? p.onSurface : p.onSurfaceVariant,
+    return Material(
+      color: p.surface,
+      borderRadius: BorderRadius.circular(Shape.xl),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: TypeScale.titleSmall.copyWith(color: p.onSurfaceVariant)),
+              const SizedBox(height: 4),
+              Text(value, style: TypeScale.headlineSmall.copyWith(color: p.onSurface)),
+              const SizedBox(height: 12),
+              MiniChart(values: values, color: color, band: band),
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    for (final (i, d) in dates.indexed)
+                      Container(
+                        width: 18,
+                        height: 18,
+                        alignment: Alignment.center,
+                        decoration: i == dates.length - 1
+                            ? BoxDecoration(color: p.surfaceContainerHighest, shape: BoxShape.circle)
+                            : null,
+                        child: Text(
+                          weekdayNarrow(d),
+                          style: TypeScale.labelMedium.copyWith(
+                            color: i == dates.length - 1 ? p.onSurface : p.onSurfaceVariant,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-              ],
-            ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(color: p.surfaceContainerHigh, borderRadius: BorderRadius.circular(Shape.sm)),
+                child: Text(chip, style: TypeScale.labelMedium.copyWith(color: p.onSurfaceVariant)),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(color: p.surfaceContainerHigh, borderRadius: BorderRadius.circular(Shape.sm)),
-            child: Text(chip, style: TypeScale.labelMedium.copyWith(color: p.onSurfaceVariant)),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -344,7 +488,14 @@ class StatColumn extends StatelessWidget {
               ),
               const SizedBox(width: 6),
             ],
-            Text(label, style: TypeScale.labelMedium.copyWith(color: p.onSurfaceVariant)),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TypeScale.labelMedium.copyWith(color: p.onSurfaceVariant),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 2),
