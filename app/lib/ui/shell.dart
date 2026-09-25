@@ -67,6 +67,9 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(arrival.body.isEmpty ? arrival.title : '${arrival.title}: ${arrival.body}'),
+          // A snackbar with an action otherwise stays until dismissed
+          // (found on the emulator); this one is news, not a question.
+          persist: false,
           action: _tab == AppTab.today ? null : SnackBarAction(label: 'Open', onPressed: () => _open(AppTab.today)),
         ),
       );
