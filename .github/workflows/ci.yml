@@ -57,8 +57,39 @@ jobs:
           REQUIRE_FIRESTORE_EMULATOR: "1"
         run: firebase emulators:exec --only firestore --project demo-fitness-test "cd functions && python -m pytest"
 
+  # Which of the slow checks a change can affect. A pull request that
+  # touches none of their inputs skips them; a push to main runs all.
+  changes:
+    name: what changed
+    runs-on: ubuntu-latest
+    outputs:
+      client: ${{ steps.diff.outputs.client }}
+      android: ${{ steps.diff.outputs.android }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ -z "$BASE" ]; then
+            echo "client=true" >> "$GITHUB_OUTPUT"
+            echo "android=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(git diff --name-only "$BASE"...HEAD)
+          echo "$files"
+          # The generated client only changes with the schema or the generator.
+          echo "client=$(echo "$files" | grep -qE '^(openapi/|openapitools.json|tool/|app/packages/fitness_api/)' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          # A Dart-only change compiles the same on Android as on the web
+          # build below; Gradle, the manifest and native plugins (pubspec) are
+          # what only an Android build catches.
+          echo "android=$(echo "$files" | grep -qE '^(app/android/|app/pubspec\.(yaml|lock)|\.github/workflows/)' && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
   app:
-    name: app (analyze + test + build)
+    name: app (analyze + test + web build)
+    needs: changes
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -66,24 +97,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.47.5"
           channel: stable
           cache: true
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
       # The Dart client is generated from openapi/openapi.json and
       # committed; regenerating it must change nothing.
+      - uses: actions/setup-java@v4
+        if: needs.changes.outputs.client == 'true'
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-node@v4
+        if: needs.changes.outputs.client == 'true'
+        with:
+          node-version: "22"
       - name: Generated API client is current
+        if: needs.changes.outputs.client == 'true'
         working-directory: .
         run: |
           tool/generate_api_client.sh
@@ -97,8 +129,38 @@ jobs:
       - name: Test
         run: flutter test
 
+      # Catches what the VM-based tests cannot: code that does not compile
+      # for the browser build the PC uses.
       - name: Build web
         run: flutter build web --release
+
+  android:
+    name: android build
+    needs: changes
+    if: needs.changes.outputs.android == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          # Gradle's own downloads (wrapper, dependencies) are most of this
+          # job's time when they are not cached.
+          cache: gradle
+          cache-dependency-path: |
+            app/android/*.gradle*
+            app/android/gradle/wrapper/gradle-wrapper.properties
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.5"
+          channel: stable
+          cache: true
 
       - name: Build Android
         run: flutter build apk --debug

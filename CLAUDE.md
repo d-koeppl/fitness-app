@@ -13,8 +13,11 @@ branch and open a pull request.
 ## Checks
 
 CI runs all of these on every pull request
-([.github/workflows/ci.yml](.github/workflows/ci.yml)); run them locally
-before pushing:
+([.github/workflows/ci.yml](.github/workflows/ci.yml)), plus a web
+build; run them locally before pushing. The two slow checks only run when
+their inputs change: the generated-client diff (schema, generator, the
+package) and the Android build (`app/android/`, `pubspec`, the workflow).
+A push to main runs everything.
 
 ```bash
 cd functions && venv/Scripts/python -m ruff check . && venv/Scripts/python -m pytest
