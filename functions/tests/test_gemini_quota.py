@@ -82,6 +82,23 @@ def test_429_moves_to_the_fallback_model_without_retrying_the_first(monkeypatch,
     assert asked == ["primary-model", "fallback-model"]
 
 
+def test_the_key_travels_in_a_header_not_the_url(monkeypatch, gemini_key):
+    """A key in the URL ended up in every HTTPError message, and from there
+    in Cloud Logging and the app's error line."""
+    sent = {}
+
+    def fake_post(url, **kwargs):
+        sent.update(kwargs, url=url)
+        return FakeResponse(200, OK_BODY)
+
+    monkeypatch.setattr(gemini.requests, "post", fake_post)
+    gemini._post_gemini(None, {})
+
+    assert sent["headers"] == {"x-goog-api-key": "test-key"}
+    assert "params" not in sent
+    assert "test-key" not in sent["url"]
+
+
 def test_503_is_retried_on_the_same_model(monkeypatch, gemini_key, no_sleep):
     asked = stub_post(monkeypatch, [FakeResponse(503), FakeResponse(200, OK_BODY)])
 

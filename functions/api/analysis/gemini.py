@@ -22,6 +22,7 @@ import requests
 
 from api.config import settings
 from api.integrations import gemini_models
+from api.integrations.gemini_models import api_key_header
 from api.integrations.google_health import local_tz
 from api.services import drinks, gemini_usage
 from api.services.exercises import sessions_since
@@ -403,7 +404,7 @@ def _post_gemini(store: FirestoreStore, body: dict, max_retries: int = 2) -> tup
     for model in models:
         url = GEMINI_API_URL.format(model=model)
         for attempt in range(max_retries + 1):
-            resp = requests.post(url, params={"key": settings.gemini_api_key}, json=body, timeout=60)
+            resp = requests.post(url, headers=api_key_header(), json=body, timeout=60)
             # Counted here because this is the only line in the process that
             # sends one, and because it went out whatever it came back as: a
             # 429 or a 500 is still a request against the day (ADR-013). A
