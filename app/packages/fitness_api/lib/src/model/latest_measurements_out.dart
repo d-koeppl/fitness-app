@@ -32,9 +32,7 @@ class LatestMeasurementsOut {
           other.weightKg == weightKg;
 
   @override
-  int get hashCode =>
-      (vo2max == null ? 0 : vo2max.hashCode) +
-      (weightKg == null ? 0 : weightKg.hashCode);
+  int get hashCode => vo2max.hashCode + weightKg.hashCode;
 
   factory LatestMeasurementsOut.fromJson(Map<String, dynamic> json) =>
       _$LatestMeasurementsOutFromJson(json);

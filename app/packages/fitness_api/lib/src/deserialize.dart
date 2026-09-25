@@ -1,5 +1,11 @@
 import 'package:fitness_api/src/model/ai_report_out.dart';
 import 'package:fitness_api/src/model/calendar_event_out.dart';
+import 'package:fitness_api/src/model/chat_message_out.dart';
+import 'package:fitness_api/src/model/chat_request.dart';
+import 'package:fitness_api/src/model/chat_response.dart';
+import 'package:fitness_api/src/model/coach_usage_out.dart';
+import 'package:fitness_api/src/model/conversation_detail_out.dart';
+import 'package:fitness_api/src/model/conversation_out.dart';
 import 'package:fitness_api/src/model/daily_health_out.dart';
 import 'package:fitness_api/src/model/day_point_out.dart';
 import 'package:fitness_api/src/model/drink_count_in.dart';
@@ -10,11 +16,13 @@ import 'package:fitness_api/src/model/google_status_out.dart';
 import 'package:fitness_api/src/model/http_validation_error.dart';
 import 'package:fitness_api/src/model/health.dart';
 import 'package:fitness_api/src/model/heart_rate_zone_out.dart';
+import 'package:fitness_api/src/model/include_flags.dart';
 import 'package:fitness_api/src/model/latest_measurements_out.dart';
 import 'package:fitness_api/src/model/match_out.dart';
 import 'package:fitness_api/src/model/me.dart';
 import 'package:fitness_api/src/model/measurement_out.dart';
 import 'package:fitness_api/src/model/missing_match_out.dart';
+import 'package:fitness_api/src/model/model_usage_out.dart';
 import 'package:fitness_api/src/model/o_auth_callback_out.dart';
 import 'package:fitness_api/src/model/o_auth_login_out.dart';
 import 'package:fitness_api/src/model/push_device_in.dart';
@@ -57,6 +65,23 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'CalendarEventOut':
       return CalendarEventOut.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'ChatMessageOut':
+      return ChatMessageOut.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'ChatRequest':
+      return ChatRequest.fromJson(value as Map<String, dynamic>) as ReturnType;
+    case 'ChatResponse':
+      return ChatResponse.fromJson(value as Map<String, dynamic>) as ReturnType;
+    case 'CoachLookbackDays':
+    case 'CoachUsageOut':
+      return CoachUsageOut.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'ConversationDetailOut':
+      return ConversationDetailOut.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'ConversationOut':
+      return ConversationOut.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'DailyHealthOut':
       return DailyHealthOut.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -83,6 +108,8 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'HeartRateZoneOut':
       return HeartRateZoneOut.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'IncludeFlags':
+      return IncludeFlags.fromJson(value as Map<String, dynamic>) as ReturnType;
     case 'LatestMeasurementsOut':
       return LatestMeasurementsOut.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -95,6 +122,9 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'MissingMatchOut':
       return MissingMatchOut.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'ModelUsageOut':
+      return ModelUsageOut.fromJson(value as Map<String, dynamic>)
           as ReturnType;
     case 'OAuthCallbackOut':
       return OAuthCallbackOut.fromJson(value as Map<String, dynamic>)

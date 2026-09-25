@@ -393,8 +393,8 @@ def _post_gemini(
     Retries 503 on the same model with a short backoff; on 429 it stops
     retrying that model and tries the next candidate, whose requests-per-day
     quota Google counts separately (ADR-013). Every attempt is recorded
-    against the day's budget. The coach chat (phase 7) will send through
-    here too.
+    against the day's budget. The coach chat (chat_completion) sends
+    through here too.
 
     `only` narrows the candidates, for the evening report's last try on the
     fallback model alone (run_daily_fallback)."""
@@ -474,6 +474,26 @@ def call_gemini(
     parsed, _end = json.JSONDecoder().raw_decode(text.strip())
     tokens_used = data.get("usageMetadata", {}).get("totalTokenCount")
     return parsed, tokens_used, model
+
+
+def chat_completion(store: FirestoreStore, system: str, messages: list[dict]) -> str:
+    """Plain-text chat reply for the coach. `messages` is
+    [{"role": "user"|"assistant", "content": str}, ...]; our "assistant"
+    maps to Gemini's "model" role."""
+    data, _model = _post_gemini(
+        store,
+        {
+            "systemInstruction": {"parts": [{"text": system}]},
+            "contents": [
+                {
+                    "role": "model" if m["role"] == "assistant" else "user",
+                    "parts": [{"text": m["content"]}],
+                }
+                for m in messages
+            ],
+        },
+    )
+    return data["candidates"][0]["content"]["parts"][0]["text"]
 
 
 def run_analysis(

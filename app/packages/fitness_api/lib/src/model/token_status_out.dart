@@ -52,10 +52,10 @@ class TokenStatusOut {
 
   @override
   int get hashCode =>
-      (accessTokenExpiresAt == null ? 0 : accessTokenExpiresAt.hashCode) +
+      accessTokenExpiresAt.hashCode +
       connected.hashCode +
-      (scopes == null ? 0 : scopes.hashCode) +
-      (updatedAt == null ? 0 : updatedAt.hashCode);
+      scopes.hashCode +
+      updatedAt.hashCode;
 
   factory TokenStatusOut.fromJson(Map<String, dynamic> json) =>
       _$TokenStatusOutFromJson(json);

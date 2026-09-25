@@ -18,6 +18,25 @@ node -e '
   const spec = JSON.parse(fs.readFileSync("openapi/openapi.json", "utf8"));
   const loc = spec.components?.schemas?.ValidationError?.properties?.loc;
   if (loc) loc.items = {};
+
+  // An optional field typed `X | None` (a request field that may be left
+  // out, like `lookback_days` on the coach chat) comes out of pydantic as
+  // `anyOf: [X, null]`, which dart-dio turns into an empty wrapper class
+  // that does not compile. Optional already means the Dart field is
+  // nullable, and the server reads a null and an absent field the same
+  // way, so the generator gets plain X. Required nullable fields (the
+  // response models) generate fine and are left alone.
+  for (const schema of Object.values(spec.components?.schemas ?? {})) {
+    const required = new Set(schema.required ?? []);
+    for (const [name, prop] of Object.entries(schema.properties ?? {})) {
+      const variants = prop.anyOf;
+      if (required.has(name) || !Array.isArray(variants) || variants.length !== 2) continue;
+      const rest = variants.filter((v) => v.type !== "null");
+      if (rest.length !== 1) continue;
+      delete prop.anyOf;
+      Object.assign(prop, rest[0]);
+    }
+  }
   fs.writeFileSync("build/openapi-for-dart.json", JSON.stringify(spec, null, 2));
 '
 

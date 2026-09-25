@@ -8,14 +8,16 @@
 // gets one section the others do not: the estimate explained, and the
 // control that marks it as not done.
 //
-// Not ported yet: "Ask the coach about this session", which pins it to a
-// coach chat — that arrives with the coach in phase 7.
+// "Ask the coach about this session" pins it to the coach chat and opens
+// the tab (ADR-021): the coach is sent this session in full — every metric
+// and the whole trace, not the summary row the rolling list carries.
 
 import 'package:fitness_api/fitness_api.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/actions.dart';
+import '../../data/coach.dart';
 import '../../data/dashboard.dart';
 import '../../domain/format.dart';
 import '../../domain/heart_rate.dart';
@@ -145,6 +147,29 @@ class _ExerciseDetailState extends ConsumerState<ExerciseDetail> {
               ),
             ],
           ),
+        ),
+        // Straight under the numbers: it is what you want the moment one of
+        // them looks wrong. Idempotent — a session already pinned is not
+        // toggled off from a screen that gives no sign it was ever on.
+        Builder(
+          builder: (context) {
+            final pinned = ref.watch(coachProvider.select((s) => s.attached.contains(session.id)));
+            return SizedBox(
+              height: 48,
+              child: FilledButton.icon(
+                onPressed: () {
+                  ref.read(coachProvider.notifier).pinFromSession(session.id);
+                  Navigator.of(context).maybePop();
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: pinned ? p.secondary.container : p.primary.container,
+                  foregroundColor: pinned ? p.secondary.onContainer : p.primary.onContainer,
+                ),
+                icon: const Icon(Icons.auto_awesome, size: 20),
+                label: Text(pinned ? 'Already attached — open the coach' : 'Ask the coach about this session'),
+              ),
+            );
+          },
         ),
         // Only a tracked session has a trace: a match the watch never
         // recorded has no readings to ask for.

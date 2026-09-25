@@ -44,6 +44,7 @@ dependencies:
     path: packages/fitness_api
   fl_chart: ^1.2.0
   firebase_messaging: ^16.7.0
+  flutter_math_fork: ^0.7.4
 
 dev_dependencies:
   flutter_test:

@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from api.auth import User, current_user, require_user
 from api.config import settings
 from api.routers import calendar as calendar_router
+from api.routers import coach as coach_router
 from api.routers import drinks as drinks_router
 from api.routers import health as health_router
 from api.routers import matches as matches_router
@@ -72,6 +73,7 @@ for router in (
     sync_router.router,
     oauth_router.router,
     push_router.router,
+    coach_router.router,
 ):
     app.include_router(router)
 
