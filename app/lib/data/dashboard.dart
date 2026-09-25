@@ -66,6 +66,22 @@ class DashboardData {
 
   DailyHealthOut? get latest => daily.isEmpty ? null : daily.last;
   DailyHealthOut? get previous => daily.length < 2 ? null : daily[daily.length - 2];
+
+  /// The two fields something other than a refresh writes: a report New
+  /// report generated, and the beer counter a tap moved.
+  DashboardData copyWith({AiReportOut? Function()? report, DrinkCounterOut? Function()? drinks}) => DashboardData(
+    matches: matches,
+    missingMatch: missingMatch,
+    events: events,
+    daily: daily,
+    lastKnown: lastKnown,
+    exercises: exercises,
+    report: report == null ? this.report : report(),
+    training: training,
+    drinks: drinks == null ? this.drinks : drinks(),
+    calendarConnected: calendarConnected,
+    healthConnected: healthConnected,
+  );
 }
 
 /// One message per source that can fail on its own; null when it did not.
@@ -196,7 +212,7 @@ class DashboardController extends Notifier<DashboardState> {
     unawaited(
       reportRequest.then((report) {
         if (round != _round || !report.ok) return;
-        state = _copy(data: _withReport(state.data, report.value), reportLoaded: true);
+        state = _copy(data: state.data.copyWith(report: () => report.value), reportLoaded: true);
       }),
     );
 
@@ -265,20 +281,27 @@ class DashboardController extends Notifier<DashboardState> {
     );
   }
 
-  /// Pulls Google Health and the calendar fresh (POST /sync), then re-reads
-  /// the dashboard even if the sync failed: whatever did land is still worth
-  /// showing. Returns what went wrong, or null.
-  Future<String?> syncNow() async {
-    String? problem;
-    try {
-      final response = await _api.getSyncApi().syncNow();
-      final failed = response.data!.sources.entries.where((e) => e.value != 'ok').map((e) => e.key).toList();
-      if (failed.isNotEmpty) problem = 'Sync failed: ${failed.join(', ')}';
-    } catch (error) {
-      problem = describeError(error);
-    }
+  /// Drop in a report New report generated, without a round trip.
+  void setReport(AiReportOut report) =>
+      state = _copy(data: state.data.copyWith(report: () => report), reportLoaded: true);
+
+  /// Move the beer counter: optimistically on a tap, then to the server's
+  /// answer (see DrinkStepper).
+  void updateDrinks(DrinkCounterOut? Function(DrinkCounterOut? previous) change) =>
+      state = _copy(data: state.data.copyWith(drinks: () => change(state.data.drinks)));
+
+  /// Mark a scheduled session as missed, or undo it, then re-read: the load
+  /// it changed is in the training status, not in the row that was tapped.
+  Future<void> setSkipped(ExerciseSessionOut session, bool skipped) async {
+    final source = switch (session.source_) {
+      'match' => SkipInSource_Enum.match,
+      'training' => SkipInSource_Enum.training,
+      _ => throw ArgumentError('A ${session.source_} session cannot be skipped'),
+    };
+    await _api.getTrainingApi().setSkip(
+      skipIn: SkipIn(source_: source, refId: session.refId!, skipped: skipped),
+    );
     await refresh();
-    return problem;
   }
 
   /// The consent URL for connecting Google Calendar or Health (ADR-029
@@ -299,20 +322,6 @@ class DashboardController extends Notifier<DashboardState> {
       return _Settled.failed(error);
     }
   }
-
-  DashboardData _withReport(DashboardData d, AiReportOut? report) => DashboardData(
-    matches: d.matches,
-    missingMatch: d.missingMatch,
-    events: d.events,
-    daily: d.daily,
-    lastKnown: d.lastKnown,
-    exercises: d.exercises,
-    report: report,
-    training: d.training,
-    drinks: d.drinks,
-    calendarConnected: d.calendarConnected,
-    healthConnected: d.healthConnected,
-  );
 
   DashboardState _copy({DashboardData? data, bool? reportLoaded}) => DashboardState(
     data: data ?? state.data,

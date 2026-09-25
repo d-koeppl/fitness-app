@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'api/api_config.dart';
 import 'api/auth_interceptor.dart';
+import 'api/slow_requests.dart';
 import 'auth/auth_service.dart';
 import 'data/dashboard.dart';
 import 'firebase_options.dart';
@@ -34,7 +35,7 @@ Future<void> main() async {
   );
   // Our interceptor instead of the generated client's own auth ones: the
   // token comes from Firebase on every request, refreshed when it expires.
-  final api = FitnessApi(dio: dio, interceptors: [AuthInterceptor(auth.idToken)]);
+  final api = FitnessApi(dio: dio, interceptors: [AuthInterceptor(auth.idToken), const SlowRequestInterceptor()]);
 
   runApp(FitnessApp(auth: auth, api: api));
 }

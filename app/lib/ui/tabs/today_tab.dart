@@ -1,13 +1,18 @@
-// The six tiles worth a glance every day, and the AI report — ported from
-// fitness-dashboard's web/components/tabs/TodayTab.tsx. Read-only in
-// phase 4: the beer stepper and New report arrive in phase 5.
+// The six tiles worth a glance every day, the beer stepper, New report and
+// the AI report — ported from fitness-dashboard's
+// web/components/tabs/TodayTab.tsx. A tile opens its metric's sheet.
 
 import 'package:fitness_api/fitness_api.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/actions.dart';
 import '../../data/dashboard.dart';
 import '../../domain/format.dart';
+import '../../domain/key_metrics.dart';
+import '../sheets/detail_sheet.dart';
+import '../sheets/drink_detail.dart';
+import '../sheets/metric_detail.dart';
 import '../theme/palette.dart';
 import '../widgets/common.dart';
 import '../widgets/metrics.dart';
@@ -21,6 +26,10 @@ class TodayTab extends ConsumerWidget {
     final state = ref.watch(dashboardProvider);
     final data = state.data;
     final p = Palette.of(context);
+    final newReport = ref.watch(newReportProvider);
+    final drinkError = ref.watch(drinkStepperProvider) ?? state.errors.drinks;
+    final stepper = ref.read(drinkStepperProvider.notifier);
+    void open(MetricKey key) => openSheet(context, MetricDetail(metric: metricByKey[key]!));
     final latest = data.latest;
     final previous = data.previous;
 
@@ -48,24 +57,28 @@ class TodayTab extends ConsumerWidget {
         icon: Icons.favorite_border,
         value: latest?.restingHr != null ? '${jsRound(latest!.restingHr!)} bpm' : dash,
         label: withDelta('Resting HR', latest?.restingHr, previous?.restingHr),
+        onTap: () => open(MetricKey.restingHr),
       ),
       MetricTile(
         tone: p.slate,
         icon: Icons.monitor_heart_outlined,
         value: latest?.hrvMs != null ? '${jsRound(latest!.hrvMs!)} ms' : dash,
         label: withDelta('Variability', latest?.hrvMs, previous?.hrvMs),
+        onTap: () => open(MetricKey.hrvMs),
       ),
       MetricTile(
         tone: p.sleep,
         icon: Icons.bedtime_outlined,
         value: fmtSleep(latest?.sleepMinutes),
         label: sleepAvg != null ? 'Sleep · avg ${fmtSleepCompact(sleepAvg)}' : 'Sleep',
+        onTap: () => open(MetricKey.sleepMinutes),
       ),
       MetricTile(
         tone: p.weight,
         icon: Icons.monitor_weight_outlined,
         value: weight != null ? '${weight.value.toStringAsFixed(1)} kg' : dash,
         label: weightLabel,
+        onTap: () => open(MetricKey.weightKg),
       ),
       MetricTile(
         tone: p.mint,
@@ -74,8 +87,17 @@ class TodayTab extends ConsumerWidget {
         label: 'Steps',
         value: latest?.steps != null ? fmtInt(latest!.steps!) : dash,
         progress: latest?.steps != null ? latest!.steps! / stepGoal : 0,
+        onTap: () => open(MetricKey.steps),
       ),
-      DrinkTile(tone: p.flame, count: data.drinks?.count, volumeL: data.drinks?.volumeL),
+      DrinkTile(
+        tone: p.flame,
+        count: data.drinks?.count,
+        volumeL: data.drinks?.volumeL,
+        onAdd: () => stepper.change(1),
+        onUndo: () => stepper.change(-1),
+        onSet: stepper.set,
+        onOpenHistory: () => openSheet(context, const DrinkDetail()),
+      ),
     ];
 
     return Column(
@@ -94,17 +116,38 @@ class TodayTab extends ConsumerWidget {
             );
           },
         ),
-        if (state.errors.drinks != null) ...[
+        if (drinkError != null) ...[
           const SizedBox(height: 8),
           Text(
-            state.errors.drinks!,
+            drinkError,
             textAlign: TextAlign.center,
             style: TypeScale.labelSmall.copyWith(color: p.error.color),
           ),
         ],
         if (data.missingMatch != null) ...[const SizedBox(height: 16), _MissingMatchNotice(data.missingMatch!)],
         const SizedBox(height: 16),
-        _ReportCard(report: data.report, error: state.errors.report, loaded: state.reportLoaded),
+        // One button (ADR-027): it syncs Google, then reports.
+        SizedBox(
+          height: 48,
+          child: FilledButton.tonalIcon(
+            onPressed: newReport.phase == null ? ref.read(newReportProvider.notifier).run : null,
+            icon: newReport.phase == null
+                ? const Icon(Icons.add, size: 20)
+                : const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+            label: Text(switch (newReport.phase) {
+              ReportPhase.syncing => 'Syncing…',
+              ReportPhase.analyzing => 'Analyzing…',
+              null => 'New report',
+            }),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _ReportCard(
+          report: data.report,
+          error: state.errors.report,
+          generateError: newReport.error,
+          loaded: state.reportLoaded,
+        ),
         if (!data.healthConnected && state.lastSynced != null) ...[
           const SizedBox(height: 16),
           ConnectCard(
@@ -152,10 +195,14 @@ class _MissingMatchNotice extends StatelessWidget {
 /// The AI report as the big editorial card, in three states: still asking,
 /// asked and there is none, and the report.
 class _ReportCard extends StatelessWidget {
-  const _ReportCard({required this.report, required this.error, required this.loaded});
+  const _ReportCard({required this.report, required this.error, required this.generateError, required this.loaded});
 
   final AiReportOut? report;
   final String? error;
+
+  /// New report failed. Said on its own line, above the report it did not
+  /// replace, rather than hiding that report behind the error.
+  final String? generateError;
   final bool loaded;
 
   @override
@@ -208,6 +255,13 @@ class _ReportCard extends StatelessWidget {
                 ),
             ],
           ),
+          if (generateError != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Could not generate a new report: $generateError',
+              style: TypeScale.bodyMedium.copyWith(color: p.error.color),
+            ),
+          ],
           if (error != null) ...[
             const SizedBox(height: 12),
             Text('Could not load the latest report: $error', style: TypeScale.bodyLarge.copyWith(color: p.error.color)),

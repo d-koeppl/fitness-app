@@ -7,15 +7,16 @@ Firebase discovers functions by importing this module.
   routers, schemas and /openapi.json carry over from the old backend.
 - `jobs` is the hourly sync (api/jobs.py), on Cloud Scheduler.
 
-Both read the same three secrets from Secret Manager: the Fernet key the
-Google tokens are encrypted with, and the OAuth client that refreshes
-them. Firebase exposes them as environment variables, which is where
-api/config.py already looks.
+Both read the same four secrets from Secret Manager: the Fernet key the
+Google tokens are encrypted with, the OAuth client that refreshes them,
+and the Gemini key the reports are written with. Firebase exposes them as
+environment variables, which is where api/config.py already looks.
 """
 
 from __future__ import annotations
 
 import functools
+import io
 import logging
 from datetime import datetime
 
@@ -38,10 +39,11 @@ options.set_global_options(region="europe-west1", max_instances=3)
 logging.getLogger("api").setLevel(logging.INFO)
 logging.basicConfig(format="%(levelname)s %(name)s: %(message)s")
 
-GOOGLE_SECRETS = [
+SECRETS = [
     SecretParam("TOKEN_ENCRYPTION_KEY"),
     SecretParam("GOOGLE_CLIENT_ID"),
     SecretParam("GOOGLE_CLIENT_SECRET"),
+    SecretParam("GEMINI_API_KEY"),
 ]
 
 
@@ -58,16 +60,23 @@ def _wsgi_app() -> ASGIMiddleware:
 
 @https_fn.on_request(
     memory=options.MemoryOption.MB_512,
-    secrets=GOOGLE_SECRETS,
-    # POST /sync pulls three Google sources in one request; the default
-    # 60 s is not always enough for a cold instance.
-    timeout_sec=120,
+    secrets=SECRETS,
+    # POST /sync pulls three Google sources in one request, and a report
+    # waits on Gemini for up to a minute per attempt (a 503 is retried);
+    # the default 60 s is not enough for either on a cold instance.
+    timeout_sec=300,
 )
 def api(req: https_fn.Request) -> https_fn.Response:
+    # The body is handed over as bytes Flask has already read, not as the
+    # raw socket: by the time this runs the server may have drained that
+    # socket into Flask's cache, and a2wsgi would then wait for bytes that
+    # never come — every request with a JSON body hung until the timeout
+    # (found on the emulator, phase 5; GETs and body-less POSTs worked).
+    environ = {**req.environ, "wsgi.input": io.BytesIO(req.get_data())}
     # buffered=True reads the body and closes the WSGI iterator here, which
     # is what lets a2wsgi finish the ASGI task; unbuffered, the task is left
     # pending until the host happens to close the response.
-    return https_fn.Response.from_app(_wsgi_app(), req.environ, buffered=True)
+    return https_fn.Response.from_app(_wsgi_app(), environ, buffered=True)
 
 
 @scheduler_fn.on_schedule(
@@ -80,7 +89,7 @@ def api(req: https_fn.Request) -> https_fn.Response:
     # CPU allowance at one run an hour (see the port plan).
     cpu=1,
     timeout_sec=540,
-    secrets=GOOGLE_SECRETS,
+    secrets=SECRETS,
     # A failed run is retried by the next hourly one; Scheduler retries on
     # top would double the Google requests for nothing.
     retry_count=0,

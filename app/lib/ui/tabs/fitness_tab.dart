@@ -9,6 +9,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/dashboard.dart';
 import '../../domain/format.dart';
+import '../sheets/detail_sheet.dart';
+import '../sheets/exercise_detail.dart';
+import '../sheets/training_detail.dart';
 import '../theme/palette.dart';
 import '../widgets/common.dart';
 import '../widgets/training_status_card.dart';
@@ -69,7 +72,7 @@ class _Training extends ConsumerWidget {
     final training = state.data.training;
     if (error != null) return Notice('Could not load training status: $error', tone: NoticeTone.error);
     if (training == null) return const Notice('Working out your training status…');
-    return TrainingStatusCard(data: training);
+    return TrainingStatusCard(data: training, onOpenDetail: () => openSheet(context, const TrainingDetail()));
   }
 }
 
@@ -98,12 +101,13 @@ class _RowList extends StatelessWidget {
 }
 
 class _ListRow extends StatelessWidget {
-  const _ListRow({required this.leading, required this.title, required this.subtitle, this.trailing});
+  const _ListRow({required this.leading, required this.title, required this.subtitle, this.trailing, this.onTap});
 
   final Widget leading;
   final Widget title;
   final Widget subtitle;
   final Widget? trailing;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -111,31 +115,33 @@ class _ListRow extends StatelessWidget {
       color: Palette.of(context).surface,
       borderRadius: BorderRadius.circular(Shape.lg),
       clipBehavior: Clip.antiAlias,
-      // Tapping a session opens its sheet in phase 5.
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            leading,
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Expanded(child: title),
-                      if (trailing != null) ...[const SizedBox(width: 8), trailing!],
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  subtitle,
-                ],
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              leading,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Expanded(child: title),
+                        if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    subtitle,
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -205,6 +211,7 @@ class _SessionRow extends StatelessWidget {
     final estimated = session.source_ != 'tracked';
     final strike = session.skipped ? TextDecoration.lineThrough : null;
     return _ListRow(
+      onTap: () => openSheet(context, ExerciseDetail(session: session)),
       leading: Opacity(
         opacity: session.skipped ? 0.5 : 1,
         child: IconDisc(

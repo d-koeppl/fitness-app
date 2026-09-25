@@ -37,6 +37,7 @@ export 'package:fitness_api/src/model/measurement_out.dart';
 export 'package:fitness_api/src/model/missing_match_out.dart';
 export 'package:fitness_api/src/model/o_auth_callback_out.dart';
 export 'package:fitness_api/src/model/o_auth_login_out.dart';
+export 'package:fitness_api/src/model/refresh_report_out.dart';
 export 'package:fitness_api/src/model/score_point_out.dart';
 export 'package:fitness_api/src/model/session_heart_rate_out.dart';
 export 'package:fitness_api/src/model/skip_in.dart';

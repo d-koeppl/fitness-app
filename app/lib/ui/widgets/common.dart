@@ -16,10 +16,13 @@ class SurfaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(color: Palette.of(context).surface, borderRadius: BorderRadius.circular(radius)),
-      child: child,
+    // A Material rather than a decorated box, so a row inside that is
+    // tappable shows its ripple on the card rather than under it.
+    return Material(
+      color: Palette.of(context).surface,
+      borderRadius: BorderRadius.circular(radius),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(padding: padding, child: child),
     );
   }
 }

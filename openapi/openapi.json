@@ -813,6 +813,27 @@
         "title": "OAuthLoginOut",
         "type": "object"
       },
+      "RefreshReportOut": {
+        "description": "What POST /reports/refresh returns: the per-source pull result plus\nthe report generated on the freshly-pulled data.",
+        "properties": {
+          "report": {
+            "$ref": "#/components/schemas/AiReportOut"
+          },
+          "sources": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Sources",
+            "type": "object"
+          }
+        },
+        "required": [
+          "sources",
+          "report"
+        ],
+        "title": "RefreshReportOut",
+        "type": "object"
+      },
       "ScorePointOut": {
         "description": "One day's recovery and readiness. Separate from DayPointOut because\nthe two series end on different days \u2014 see analysis.training_load.",
         "properties": {
@@ -1844,7 +1865,7 @@
     },
     "/matches": {
       "get": {
-        "description": "Newest first, undated rows before all of them \u2014 Postgres'\n`ORDER BY match_date DESC` puts NULLs first, and this keeps its order.",
+        "description": "Newest first, undated rows before all of them.",
         "operationId": "listMatches",
         "responses": {
           "200": {
@@ -2095,6 +2116,33 @@
         ]
       }
     },
+    "/reports/generate": {
+      "post": {
+        "description": "A report on the data already stored, with no sync of its own. The\napp's **New report** calls POST /sync first, as a separate request, so\nthe button can show \"Syncing\u2026\" and then \"Analyzing\u2026\" (ADR-027).\nSynchronous (the caller is already watching a loading state) and not\ndebounced \u2014 a deliberate tap always gets a fresh analysis. No push\neither: the user is already looking at the screen that shows it.\n\nUndebounced does not mean unbounded: every tap spends one of the day's\nGemini requests, and run_analysis refuses once they are gone (ADR-013).",
+        "operationId": "generateReport",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Generate Report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
     "/reports/latest": {
       "get": {
         "operationId": "getLatestReport",
@@ -2116,6 +2164,33 @@
           }
         ],
         "summary": "Get Latest Report",
+        "tags": [
+          "reports"
+        ]
+      }
+    },
+    "/reports/refresh": {
+      "post": {
+        "description": "Sync, then report, in one request \u2014 for curl and scripts (ADR-016).\nThe app makes the same two steps as two requests, /sync then\n/generate, so it can show which it is waiting on (ADR-027).\n\nThe Gemini budget is checked *before* the pull so a spent day fails in\na second instead of after a minute of network work. A dead single\nsource doesn't abort \u2014 it comes back in `sources` as \"failed:\u2026\" and the\nreport still runs on whatever else refreshed.",
+        "operationId": "refreshAndGenerate",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefreshReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Refresh And Generate",
         "tags": [
           "reports"
         ]

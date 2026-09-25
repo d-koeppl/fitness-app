@@ -33,9 +33,11 @@ enum MetricHue {
 /// bars from zero; a level like resting heart rate gets a line.
 enum ChartMark { bar, line }
 
-sealed class MetricDef {
-  const MetricDef({
-    required this.key,
+/// What a chart needs to draw a series: its name, mark, colours and how its
+/// numbers are written. Every [MetricDef] is one; the beer sheet's chart is
+/// one without being a metric the Health tab lists.
+class ChartMetric {
+  const ChartMetric({
     required this.title,
     required this.mark,
     required this.color,
@@ -46,7 +48,6 @@ sealed class MetricDef {
     this.domain,
   });
 
-  final MetricKey key;
   final String title;
   final ChartMark mark;
   final MetricHue color;
@@ -65,6 +66,22 @@ sealed class MetricDef {
 
   /// A pinned y-axis, only for scores defined on a fixed range.
   final (double, double)? domain;
+}
+
+sealed class MetricDef extends ChartMetric {
+  const MetricDef({
+    required this.key,
+    required super.title,
+    required super.mark,
+    required super.color,
+    required super.band,
+    required super.format,
+    required super.formatTick,
+    required super.minStep,
+    super.domain,
+  });
+
+  final MetricKey key;
 }
 
 /// Read straight off the watch's daily rows.
@@ -285,3 +302,18 @@ final loadMetrics = <LoadMetricDef>[
 final Map<MetricKey, MetricDef> metricByKey = {
   for (final m in <MetricDef>[...healthMetrics, ...scoreMetrics, ...loadMetrics]) m.key: m,
 };
+
+/// Half-litre beers per day (ADR-019), in the Today tile's own tone, so
+/// the chart and the thing tapped to get to it are plainly the same.
+final beerMetric = ChartMetric(
+  title: 'Beer',
+  mark: ChartMark.bar,
+  color: MetricHue.warning,
+  band: MetricHue.warning,
+  format: (v) {
+    final beers = oneDecimalTrimmed(v);
+    return '$beers ${beers == '1' ? 'beer' : 'beers'}';
+  },
+  formatTick: oneDecimalTrimmed,
+  minStep: 0.1,
+);

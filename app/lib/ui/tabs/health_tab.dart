@@ -10,6 +10,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/dashboard.dart';
 import '../../domain/format.dart';
 import '../../domain/key_metrics.dart';
+import '../sheets/detail_sheet.dart';
+import '../sheets/metric_detail.dart';
 import '../theme/palette.dart';
 import '../widgets/common.dart';
 import '../widgets/metrics.dart';
@@ -192,6 +194,7 @@ class HealthTab extends ConsumerWidget {
             color: p.hue(featured.hue),
             band: p.band(featured.hue),
             chip: featured.chip,
+            onTap: () => _open(context, featured.key),
           ),
           const SizedBox(height: 12),
           _MetricChips(cards: cards, selected: featured.key, onSelect: ref.read(_featuredProvider.notifier).set),
@@ -253,6 +256,8 @@ class _MetricChips extends StatelessWidget {
   }
 }
 
+void _open(BuildContext context, MetricKey key) => openSheet(context, MetricDetail(metric: metricByKey[key]!));
+
 /// Icon, name, a hairline trend and the current value.
 class _MetricRow extends StatelessWidget {
   const _MetricRow(this.card);
@@ -264,33 +269,36 @@ class _MetricRow extends StatelessWidget {
     final p = Palette.of(context);
     final color = p.hue(card.hue);
     final band = p.band(card.hue);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-      child: Row(
-        children: [
-          IconDisc(icon: _metricIcon[card.key]!, background: band, color: color, size: 34, iconSize: 16),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              card.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TypeScale.bodyMedium.copyWith(color: p.onSurface),
-            ),
-          ),
-          // Hidden on the narrowest phones, as on the web.
-          if (MediaQuery.sizeOf(context).width >= 380) ...[
-            SizedBox(
-              width: 56,
-              child: MiniChart(values: card.values, color: color, band: band, dense: true),
-            ),
+    return InkWell(
+      onTap: () => _open(context, card.key),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+        child: Row(
+          children: [
+            IconDisc(icon: _metricIcon[card.key]!, background: band, color: color, size: 34, iconSize: 16),
             const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                card.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TypeScale.bodyMedium.copyWith(color: p.onSurface),
+              ),
+            ),
+            // Hidden on the narrowest phones, as on the web.
+            if (MediaQuery.sizeOf(context).width >= 380) ...[
+              SizedBox(
+                width: 56,
+                child: MiniChart(values: card.values, color: color, band: band, dense: true),
+              ),
+              const SizedBox(width: 12),
+            ],
+            Text(
+              card.value,
+              style: TypeScale.titleSmall.copyWith(color: p.onSurface, fontFeatures: TypeScale.tabular),
+            ),
           ],
-          Text(
-            card.value,
-            style: TypeScale.titleSmall.copyWith(color: p.onSurface, fontFeatures: TypeScale.tabular),
-          ),
-        ],
+        ),
       ),
     );
   }

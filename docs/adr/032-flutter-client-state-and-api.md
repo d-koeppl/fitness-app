@@ -64,7 +64,7 @@ The web app did three things by hand that now need a Dart home:
   midnight, and a few (`series[].date`) as strings; `parseDay` covers the
   latter. Timestamps arrive in UTC and are shown with `toLocal()`.
 - Not ported yet: KaTeX and Mermaid in report text (they render as source
-  until phase 7), and every write (phase 5).
+  until phase 7). The writes arrived in phase 5 (ADR-033).
 
 ## How we know it works
 

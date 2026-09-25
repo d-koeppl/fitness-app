@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -48,6 +49,22 @@ def test_importing_main_does_not_start_the_adapter():
         check=True,
     )
     assert result.stdout.strip() == "0"
+
+
+def test_a_json_body_reaches_the_app_after_the_server_has_read_it():
+    """The emulated server drains the socket into Flask's cache before the
+    function runs; a2wsgi reading the raw input then waited forever, and
+    every PUT and POST with a body hung (phase 5). The request is answered
+    at all — 401, since it carries no token — rather than timing out."""
+    environ = EnvironBuilder(path="/drinks", method="PUT", json={"count": 2}).get_environ()
+    request = Request(environ)
+    request.get_data()
+    result: list = []
+    worker = threading.Thread(target=lambda: result.append(main.api(request)), daemon=True)
+    worker.start()
+    worker.join(timeout=10)
+    assert result, "the request hung waiting for its body"
+    assert result[0].status_code == 401
 
 
 def test_unknown_path_is_a_404_not_an_adapter_error():

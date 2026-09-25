@@ -234,6 +234,20 @@ class Palette extends ThemeExtension<Palette> {
   Color get fitnessColor => primary.color;
   Color get fatigueColor => warning.color;
 
+  /// The training-load bars, one step off the card so the two lines on top
+  /// of them stay the thing the eye reads.
+  Color get loadColor => surfaceContainerHighest;
+
+  /// A heart-rate zone: blue, green, amber, red, the ramp the Google Health
+  /// app uses, from the palette's roles so it follows into dark mode.
+  Color zoneColor(String? zone) => switch (zone) {
+    'light' => primary.color,
+    'fat_burn' => success.color,
+    'cardio' => warning.color,
+    'peak' => error.color,
+    _ => primary.color,
+  };
+
   /// A metric's line colour.
   Color hue(MetricHue hue) => switch (hue) {
     MetricHue.success => success.color,

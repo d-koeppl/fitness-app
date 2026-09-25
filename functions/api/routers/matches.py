@@ -7,12 +7,10 @@ that the log does not (api/services/matches.py).
 
 from __future__ import annotations
 
-from datetime import date
-
 from fastapi import APIRouter, Depends
 
 from api.schemas.matches import MatchOut, MissingMatchOut
-from api.services.matches import MissingMatch, missing_match
+from api.services.matches import MissingMatch, missing_match, newest_first
 from api.store.firestore import FirestoreStore, get_store
 from api.store.rows import MatchPerformance
 
@@ -21,11 +19,8 @@ router = APIRouter(tags=["matches"])
 
 @router.get("/matches", response_model=list[MatchOut])
 def list_matches(store: FirestoreStore = Depends(get_store)) -> list[MatchPerformance]:
-    """Newest first, undated rows before all of them — Postgres'
-    `ORDER BY match_date DESC` puts NULLs first, and this keeps its order."""
-    return sorted(
-        store.matches(), key=lambda m: (m.match_date is None, m.match_date or date.min), reverse=True
-    )
+    """Newest first, undated rows before all of them."""
+    return newest_first(store)
 
 
 @router.get("/matches/missing", response_model=MissingMatchOut | None)

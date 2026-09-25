@@ -82,7 +82,14 @@ cd app && flutter run -d chrome --dart-define=API_BASE_URL=http://127.0.0.1:5001
 The emulated API reads `functions/.env.local` (copy `functions/.env.example`)
 and only trusts Auth-emulator tokens; the deployed one reads
 `functions/.env.fitness-75c22` and only trusts real ones. Point both
-dart-defines at the emulators or neither.
+dart-defines at the emulators or neither. The functions emulator needs
+`functions/.secret.local` with a non-empty `GEMINI_API_KEY` (a dummy is
+fine; New report then answers 502), or it asks Secret Manager on every
+request. Seed its Firestore with `tools/migrate/import_firestore.py`.
+
+Widget tests that write: Dio runs interceptors on a zero-length timer, so
+advance fake time with `tester.pump(Duration.zero)` (`settleRequests` in
+`test/ui/fake_api.dart`); a bare `pump()` never delivers the request.
 
 ## Auth
 
@@ -94,12 +101,14 @@ is a security decision, not a convenience.
 ## Functions and secrets
 
 - `api` serves the FastAPI app; `jobs` runs hourly at :30 Vienna time
-  (`functions/api/jobs.py`): Google Health, heart rate, calendar, and the
-  ÖFB scrape at `OEFB_SYNC_HOUR`. One Cloud Scheduler job — the free tier
+  (`functions/api/jobs.py`): Google Health, heart rate, calendar, the ÖFB
+  scrape at `OEFB_SYNC_HOUR`, and the fallback report at
+  `WAKE_FALLBACK_HOUR` when the day has none (ADR-033). One Cloud Scheduler job — the free tier
   allows three per billing account.
 - Secrets live in Secret Manager, never in a `.env`:
   `TOKEN_ENCRYPTION_KEY` (must stay the key the stored Google tokens were
-  encrypted with), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`. Set one with
+  encrypted with), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+  `GEMINI_API_KEY`. Set one with
   `firebase functions:secrets:set NAME --data-file -`.
 - Non-secret deploy settings are in `functions/.env.fitness-75c22`
   (not committed; see `functions/.env.example`).

@@ -746,6 +746,100 @@ def test_report_created_since_spots_a_report_after_the_cutoff(db):
     assert report_created_since(db, NOW + timedelta(hours=1)) is False
 
 
+def test_generate_returns_the_report_it_stored(client, db, monkeypatch):
+    import api.routers.reports as reports
+    from api.store import rows
+
+    def fake_run_analysis(store, trigger: str) -> rows.AiReport:
+        report = rows.AiReport(
+            id=store.next_ids("reports")[0],
+            created_at=NOW,
+            trigger=trigger,
+            model="m",
+            prompt_version="v5",
+            summary_md="fresh",
+            insights={"readiness": "high"},
+        )
+        store.put_report(report)
+        return report
+
+    monkeypatch.setattr(reports, "run_analysis", fake_run_analysis)
+
+    body = client.post("/reports/generate").json()
+    assert (body["trigger"], body["summary_md"]) == ("manual", "fresh")
+    assert client.get("/reports/latest").json()["id"] == body["id"]
+
+
+def test_generate_reports_a_spent_budget_as_429_not_500(client, monkeypatch):
+    """GeminiQuotaExceeded subclasses RuntimeError, and the RuntimeError
+    branch returns 500 — so the order of the two except clauses is the
+    whole test."""
+    import api.routers.reports as reports
+    from api.services.gemini_usage import GeminiQuotaExceeded
+
+    def boom(_store, _trigger):
+        raise GeminiQuotaExceeded("All 6 of today's Gemini requests are spent")
+
+    monkeypatch.setattr(reports, "run_analysis", boom)
+
+    res = client.post("/reports/generate")
+    assert res.status_code == 429
+    assert "spent" in res.json()["detail"]
+
+
+def test_generate_without_a_gemini_key_says_so(client):
+    res = client.post("/reports/generate")
+    assert res.status_code == 500
+    assert "GEMINI_API_KEY" in res.json()["detail"]
+
+
+def test_refresh_endpoint_pulls_the_google_sources_then_reports(client, db, monkeypatch):
+    import api.routers.reports as reports
+    from api.store import rows
+
+    order: list[str] = []
+
+    def pull(_store):
+        order.append("sync")
+        return {"health": "ok", "heart_rate": "ok", "calendar": "failed: grant revoked"}
+
+    def fake_run_analysis(_store, trigger: str) -> rows.AiReport:
+        order.append(trigger)
+        return rows.AiReport(
+            id=1,
+            created_at=NOW,
+            trigger=trigger,
+            model="m",
+            prompt_version="v5",
+            summary_md="on fresh data",
+            insights={},
+        )
+
+    monkeypatch.setattr(reports, "refresh_google_sources", pull)
+    monkeypatch.setattr(reports, "run_analysis", fake_run_analysis)
+
+    body = client.post("/reports/refresh").json()
+    assert order == ["sync", "manual_refresh"]
+    assert body["sources"]["calendar"].startswith("failed")
+    assert body["report"]["summary_md"] == "on fresh data"
+
+
+def test_refresh_endpoint_checks_the_gemini_budget_before_pulling(client, monkeypatch):
+    import api.routers.reports as reports
+    from api.services.gemini_usage import GeminiQuotaExceeded
+
+    pulled: list[bool] = []
+    monkeypatch.setattr(reports, "refresh_google_sources", lambda _store: pulled.append(True) or {})
+
+    def out_of_budget(_store) -> None:
+        raise GeminiQuotaExceeded("today's requests are spent")
+
+    monkeypatch.setattr(reports.gemini_usage, "require_report_budget", out_of_budget)
+
+    assert client.post("/reports/refresh").status_code == 429
+    assert pulled == []  # no network work once the day is known to be spent
+
+
 # --- push -------------------------------------------------------------------
 
 
