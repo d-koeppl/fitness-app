@@ -384,7 +384,9 @@ _QUOTA_STATUS = 429
 _NOT_FOUND_STATUS = 404
 
 
-def _post_gemini(store: FirestoreStore, body: dict, max_retries: int = 2) -> tuple[dict, str]:
+def _post_gemini(
+    store: FirestoreStore, body: dict, max_retries: int = 2, only: list[str] | None = None
+) -> tuple[dict, str]:
     """POST to the Gemini generateContent endpoint; returns the parsed
     response and the model that actually answered.
 
@@ -392,12 +394,16 @@ def _post_gemini(store: FirestoreStore, body: dict, max_retries: int = 2) -> tup
     retrying that model and tries the next candidate, whose requests-per-day
     quota Google counts separately (ADR-013). Every attempt is recorded
     against the day's budget. The coach chat (phase 7) will send through
-    here too."""
+    here too.
+
+    `only` narrows the candidates, for the evening report's last try on the
+    fallback model alone (run_daily_fallback)."""
     _require_api_key()
 
-    models = gemini_models.candidates()
-    if not models:
+    configured = gemini_models.candidates()
+    if not configured:
         raise RuntimeError("GEMINI_MODEL is not set")
+    models = only or configured
 
     unavailable: requests.Response | None = None
 
@@ -431,14 +437,14 @@ def _post_gemini(store: FirestoreStore, body: dict, max_retries: int = 2) -> tup
                 unavailable = resp
                 break
             resp.raise_for_status()
-            if model != models[0]:
+            if model != configured[0]:
                 logger.info("Gemini answered on fallback model %s", model)
             data = resp.json()
             # An alias like gemini-flash-latest names no model; modelVersion
             # is the one that actually answered (ADR-025), and what the
             # rolling fallback has to stay below.
             served = data.get("modelVersion")
-            if model == models[0]:
+            if model == configured[0]:
                 gemini_models.note_primary_answered(served)
             return data, served or model
 
@@ -448,7 +454,9 @@ def _post_gemini(store: FirestoreStore, body: dict, max_retries: int = 2) -> tup
     raise RuntimeError("No configured Gemini model is available")
 
 
-def call_gemini(store: FirestoreStore, prompt: str, max_retries: int = 2) -> tuple[dict, int | None, str]:
+def call_gemini(
+    store: FirestoreStore, prompt: str, max_retries: int = 2, only: list[str] | None = None
+) -> tuple[dict, int | None, str]:
     data, model = _post_gemini(
         store,
         {
@@ -456,6 +464,7 @@ def call_gemini(store: FirestoreStore, prompt: str, max_retries: int = 2) -> tup
             "generationConfig": {"responseMimeType": "application/json"},
         },
         max_retries=max_retries,
+        only=only,
     )
 
     text = data["candidates"][0]["content"]["parts"][0]["text"]
@@ -467,7 +476,9 @@ def call_gemini(store: FirestoreStore, prompt: str, max_retries: int = 2) -> tup
     return parsed, tokens_used, model
 
 
-def run_analysis(store: FirestoreStore, trigger: str) -> AiReport:
+def run_analysis(
+    store: FirestoreStore, trigger: str, max_retries: int = 2, only: list[str] | None = None
+) -> AiReport:
     started = time.perf_counter()
     # The report may spend the whole day's budget — it is what the reserve
     # is held for — but not more than exists. Past that Google refuses it
@@ -484,7 +495,7 @@ def run_analysis(store: FirestoreStore, trigger: str) -> AiReport:
     prompt = build_prompt(context)
 
     gemini_started = time.perf_counter()
-    parsed, tokens_used, model = call_gemini(store, prompt)
+    parsed, tokens_used, model = call_gemini(store, prompt, max_retries=max_retries, only=only)
     gemini_seconds = time.perf_counter() - gemini_started
 
     health_dates = [h["date"] for h in context["recent_daily_health"]]
@@ -523,21 +534,37 @@ def run_analysis(store: FirestoreStore, trigger: str) -> AiReport:
     return report
 
 
-def run_daily_fallback(store: FirestoreStore) -> str:
+def run_daily_fallback(store: FirestoreStore, last_try: bool = False) -> str:
     """The end-of-day safety net (ADR-004): a report only if nothing else
     produced one today — a New report tap already covered the day, and
     re-running would just spend Gemini budget to say the same thing.
     Called from the hourly job; returns what it did, for the job's log line.
+
+    The job calls it at WAKE_FALLBACK_HOUR and again an hour later with
+    `last_try`, which only does anything if the first left the day without
+    a report (ADR-034). On the last try a Gemini failure gets one more
+    attempt, on the fallback model alone and without retries: a primary
+    that is still overloaded an hour later is not about to recover, and
+    one request of the fallback's budget is worth the day's report.
 
     Then it pushes the report to every registered device (ADR-030). A push
     that fails is logged and leaves the report standing: it is already
     saved, and the app shows it on the next open either way."""
     if report_exists_today(store):
         return "skipped (today already has a report)"
-    report = run_analysis(store, "daily_fallback")
+    note = ""
+    try:
+        report = run_analysis(store, "daily_fallback")
+    except requests.RequestException:
+        fallback = gemini_models.candidates()[1:]
+        if not last_try or not fallback:
+            raise
+        logger.warning("Evening report failed again; one try on the fallback model %s", fallback[0])
+        report = run_analysis(store, "daily_fallback", max_retries=0, only=fallback[:1])
+        note = f" on the fallback model {fallback[0]}"
     try:
         pushed = notify_report_ready(store, report)
     except Exception as exc:  # noqa: BLE001 — logged; the report itself is saved
         logger.exception("Push after the daily report failed")
         pushed = f"failed: {exc}"
-    return f"ok (report {report.id}; push: {pushed})"
+    return f"ok (report {report.id}{note}; push: {pushed})"

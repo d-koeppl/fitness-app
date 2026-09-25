@@ -12,6 +12,9 @@ every hour, local time, and does:
   report, if nothing else made one today (ADR-004). It runs after the
   sync, so it reports on data at most a minute old — the old scheduler's
   18:00 job reported on whatever the last half-hourly sync had left.
+- an hour later (19:30): the same again, which only does anything when
+  18:30 left the day without a report — Gemini overloaded, typically — and
+  may fall back to the second model once (ADR-034).
 
 Kept apart from main.py so the schedule logic is plain Python a test can
 call with any clock.
@@ -48,11 +51,12 @@ def run_hourly(store: FirestoreStore, now: datetime) -> dict[str, str]:
             logger.exception("ÖFB scrape failed")
             results["oefb"] = f"failed: {exc}"
 
-    if now.hour == settings.wake_fallback_hour:
+    last_try = now.hour == (settings.wake_fallback_hour + 1) % 24
+    if now.hour == settings.wake_fallback_hour or last_try:
         from api.analysis.gemini import run_daily_fallback
 
         try:
-            results["report"] = run_daily_fallback(store)
+            results["report"] = run_daily_fallback(store, last_try=last_try)
         except Exception as exc:  # noqa: BLE001 — logged; the sync above still counts
             logger.exception("Daily fallback report failed")
             results["report"] = f"failed: {exc}"

@@ -14,6 +14,7 @@ from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
+import requests
 
 from api.analysis import gemini
 from api.analysis.training_load import TrainingStatus
@@ -280,7 +281,7 @@ def answered(monkeypatch, status):
     monkeypatch.setattr(
         gemini,
         "call_gemini",
-        lambda _store, _prompt: (
+        lambda _store, _prompt, **_how: (
             {"summary_md": "## Rested", "insights": {"readiness": "high"}},
             1234,
             "gemini-3.8-flash",
@@ -363,3 +364,69 @@ def test_a_failed_push_leaves_the_daily_report_standing(store, answered, monkeyp
 
     assert gemini.run_daily_fallback(store).endswith("push: failed: FCM unreachable)")
     assert store.latest_report().trigger == "daily_fallback"
+
+
+# --- the 19:30 last try (ADR-034) ---------------------------------------------
+
+
+@pytest.fixture
+def overloaded(monkeypatch, answered):
+    """The primary answers 503 however often it is asked; the fallback
+    answers. Records which models each call was allowed."""
+    calls: list[tuple[list[str] | None, int]] = []
+
+    def call(_store, _prompt, max_retries=2, only=None):
+        calls.append((only, max_retries))
+        if only is None:
+            raise requests.HTTPError("503 Server Error: Service Unavailable")
+        return {"summary_md": "## Late", "insights": {"readiness": "moderate"}}, 99, only[0]
+
+    monkeypatch.setattr(gemini, "call_gemini", call)
+    return calls
+
+
+def test_the_1830_run_does_not_fall_back_on_its_own(store, overloaded):
+    with pytest.raises(requests.HTTPError):
+        gemini.run_daily_fallback(store)
+
+    assert overloaded == [(None, 2)]
+    assert store.latest_report() is None
+
+
+def test_the_last_try_falls_back_once_to_the_second_model(store, overloaded):
+    result = gemini.run_daily_fallback(store, last_try=True)
+
+    # The normal call first, then one on the fallback alone, without retries.
+    assert overloaded == [(None, 2), (["fallback-model"], 0)]
+    report = store.latest_report()
+    assert report.trigger == "daily_fallback"
+    assert report.model == "fallback-model"
+    assert result.startswith(f"ok (report {report.id} on the fallback model fallback-model; push: ")
+
+
+def test_the_last_try_does_nothing_when_the_day_has_a_report(store, overloaded, monkeypatch):
+    monkeypatch.setattr(gemini, "report_exists_today", lambda _store: True)
+
+    assert gemini.run_daily_fallback(store, last_try=True).startswith("skipped")
+    assert overloaded == []
+
+
+def test_the_last_try_without_a_fallback_model_raises(store, overloaded, monkeypatch):
+    monkeypatch.setattr(settings, "gemini_fallback_model", "")
+
+    with pytest.raises(requests.HTTPError):
+        gemini.run_daily_fallback(store, last_try=True)
+    assert overloaded == [(None, 2)]
+
+
+def test_a_spent_budget_is_not_retried_on_the_fallback(store, answered, monkeypatch):
+    """Both models share the day's allowance (ADR-013): the fallback cannot
+    help once it is gone."""
+    monkeypatch.setattr(
+        gemini.gemini_usage,
+        "require_report_budget",
+        lambda _store: (_ for _ in ()).throw(gemini_usage.GeminiQuotaExceeded("spent")),
+    )
+
+    with pytest.raises(gemini_usage.GeminiQuotaExceeded):
+        gemini.run_daily_fallback(store, last_try=True)

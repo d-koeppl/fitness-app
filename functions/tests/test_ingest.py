@@ -295,8 +295,11 @@ def test_the_fallback_report_runs_only_in_its_hour_and_after_the_sync(sources, m
     from api.analysis import gemini
     from api.config import settings
 
-    def fallback(store):
+    tries: list[bool] = []
+
+    def fallback(store, last_try=False):
         sources.append("report")
+        tries.append(last_try)
         return "ok (report 1)"
 
     monkeypatch.setattr(gemini, "run_daily_fallback", fallback)
@@ -309,12 +312,17 @@ def test_the_fallback_report_runs_only_in_its_hour_and_after_the_sync(sources, m
     assert sources[-4:] == ["health", "heart_rate", "calendar", "report"]
     assert results["report"] == "ok (report 1)"
 
+    # An hour later, the last try (ADR-034); nothing the hour after.
+    jobs.run_hourly(object(), datetime(2026, 9, 25, settings.wake_fallback_hour + 1, 30, tzinfo=VIENNA))
+    jobs.run_hourly(object(), datetime(2026, 9, 25, settings.wake_fallback_hour + 2, 30, tzinfo=VIENNA))
+    assert tries == [False, True]
+
 
 def test_a_failed_fallback_report_is_logged_not_raised(sources, monkeypatch):
     from api.analysis import gemini
     from api.config import settings
 
-    def boom(store):
+    def boom(store, last_try=False):
         raise RuntimeError("GEMINI_API_KEY is not set")
 
     monkeypatch.setattr(gemini, "run_daily_fallback", boom)
