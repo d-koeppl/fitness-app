@@ -16,6 +16,7 @@ environment variables, which is where api/config.py already looks.
 from __future__ import annotations
 
 import functools
+import io
 import logging
 from datetime import datetime
 
@@ -66,10 +67,16 @@ def _wsgi_app() -> ASGIMiddleware:
     timeout_sec=300,
 )
 def api(req: https_fn.Request) -> https_fn.Response:
+    # The body is handed over as bytes Flask has already read, not as the
+    # raw socket: by the time this runs the server may have drained that
+    # socket into Flask's cache, and a2wsgi would then wait for bytes that
+    # never come — every request with a JSON body hung until the timeout
+    # (found on the emulator, phase 5; GETs and body-less POSTs worked).
+    environ = {**req.environ, "wsgi.input": io.BytesIO(req.get_data())}
     # buffered=True reads the body and closes the WSGI iterator here, which
     # is what lets a2wsgi finish the ASGI task; unbuffered, the task is left
     # pending until the host happens to close the response.
-    return https_fn.Response.from_app(_wsgi_app(), req.environ, buffered=True)
+    return https_fn.Response.from_app(_wsgi_app(), environ, buffered=True)
 
 
 @scheduler_fn.on_schedule(

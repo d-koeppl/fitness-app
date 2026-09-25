@@ -192,6 +192,63 @@ void main() {
     expect(find.text('Count it again'), findsOneWidget);
   });
 
+  testWidgets("a tracked session's trace is asked for with its id escaped", (tester) async {
+    final sent = <Sent>[];
+    final id = '${iso(yesterday)}#0';
+    final api = fakeApi({
+      ...fixtures(),
+      '/health-data/exercises': [
+        {
+          'id': id,
+          'date': iso(yesterday),
+          'start_ts': '${iso(yesterday)}T15:00:00Z',
+          'end_ts': '${iso(yesterday)}T16:00:00Z',
+          'exercise_type': 'RUNNING',
+          'title': null,
+          'duration_minutes': 60,
+          'active_zone_minutes': 55,
+          'average_heart_rate': 148,
+          'estimated_load': null,
+          'metrics': <String, Object>{},
+          'source': 'tracked',
+          'ref_id': null,
+          'skipped': false,
+        },
+      ],
+      // "#" unescaped would start a URL fragment and cut the path at the day.
+      '/health-data/exercises/${iso(yesterday)}%230/heart-rate': {
+        'session_id': id,
+        'date': iso(yesterday),
+        'start_ts': '${iso(yesterday)}T15:00:00Z',
+        'end_ts': '${iso(yesterday)}T16:00:00Z',
+        'fetched_at': '${iso(today)}T02:00:00Z',
+        'samples': [
+          [0, 95],
+          [1800, 150],
+          [3600, 120],
+        ],
+        'sample_count': 3,
+        'min_bpm': 95,
+        'max_bpm': 150,
+        'average_bpm': 128,
+        'zones': <Object>[],
+        'zone_source': null,
+        'resting_hr': 56,
+        'max_hr': null,
+      },
+    }, sent: sent);
+    await pumpDashboard(tester, api);
+    await tester.tap(find.text('Fitness').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sessions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Running'));
+    await tester.pumpAndSettle();
+
+    expect(sent.where((r) => r.path.endsWith('/heart-rate')).single.path, contains('%230'));
+    expect(find.text('95–150 bpm'), findsOneWidget);
+  });
+
   testWidgets('the beer sheet corrects an earlier day, but not below what a report counted', (tester) async {
     final sent = <Sent>[];
     final api = fakeApi({

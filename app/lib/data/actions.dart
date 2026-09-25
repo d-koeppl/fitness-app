@@ -233,6 +233,13 @@ class HealthHistory extends AsyncNotifier<List<DailyHealthOut>> {
 
 /// One session's heart rate trace, fetched when its sheet opens. A few
 /// hundred points per session, so never with the list.
+///
+/// The id is escaped here because the generated client puts path
+/// parameters in raw, and a session id is "2026-09-24#0": unescaped, the
+/// "#" starts a URL fragment and the request goes to the day instead.
 final sessionHeartRateProvider = FutureProvider.autoDispose.family<SessionHeartRateOut, String>(
-  (ref, sessionId) async => (await ref.read(apiProvider).getHealthApi().exerciseHeartRate(sessionId: sessionId)).data!,
+  (ref, sessionId) async => (await ref
+      .read(apiProvider)
+      .getHealthApi()
+      .exerciseHeartRate(sessionId: Uri.encodeComponent(sessionId))).data!,
 );
