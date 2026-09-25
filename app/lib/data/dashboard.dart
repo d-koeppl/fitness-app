@@ -285,11 +285,16 @@ class DashboardController extends Notifier<DashboardState> {
   void setReport(AiReportOut report) =>
       state = _copy(data: state.data.copyWith(report: () => report), reportLoaded: true);
 
-  /// Re-read only the latest report: what a push announces. One request,
-  /// not the whole round.
+  /// Check for the report a push announces: one request while nothing is
+  /// new, and the whole round when it is — a new report claims the pending
+  /// beers (ADR-019), so the counter changed with it and a report-only
+  /// update left the beer tile showing the old count.
   Future<void> refreshReport() async {
     final report = await _latestReport(_api);
-    if (report.ok && report.value != null) setReport(report.value!);
+    if (!report.ok || report.value == null) return;
+    if (report.value!.id == state.data.report?.id) return;
+    setReport(report.value!);
+    await refresh();
   }
 
   /// Move the beer counter: optimistically on a tap, then to the server's

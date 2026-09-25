@@ -50,7 +50,9 @@ app, and Web Push cannot reach one.
   the latest report. A push that arrives with the app in front shows a
   snackbar, because the system shows nothing then. In a browser a click
   only focuses the tab and the page hears nothing of it, so returning to
-  the app with notifications on re-reads the report (one request).
+  the app with notifications on re-reads the report (one request). When
+  the report is a new one, the whole dashboard is re-read, since the
+  report claimed the pending beers and the counter changed with it.
 - **A failed push never fails the report.** The report is already saved,
   and the job's log line says what the push did:
   `ok (report N; push: sent 1, pruned 0, failed 0)`.
