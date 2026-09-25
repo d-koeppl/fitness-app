@@ -6,6 +6,8 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:fitness/data/dashboard.dart';
+import 'package:fitness/data/push.dart';
+import 'package:fitness/push/push_service.dart';
 import 'package:fitness/ui/shell.dart';
 import 'package:fitness/ui/theme/palette.dart';
 import 'package:fitness_api/fitness_api.dart';
@@ -156,17 +158,23 @@ FitnessApi fakeApi(Map<String, Object?> responses, {int? status, List<Sent>? sen
   return api;
 }
 
-/// The dashboard shell on a phone-sized screen, signed in, against [api].
-Future<void> pumpDashboard(WidgetTester tester, FitnessApi api) async {
+/// The dashboard shell on a phone-sized screen, signed in, against [api];
+/// with [push], on a device that has push (by default it has none).
+Future<void> pumpDashboard(
+  WidgetTester tester,
+  FitnessApi api, {
+  PushService? push,
+  Future<void> Function()? signOut,
+}) async {
   tester.view.physicalSize = const Size(412 * 3, 915 * 3);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [apiProvider.overrideWithValue(api)],
+      overrides: [apiProvider.overrideWithValue(api), pushServiceProvider.overrideWithValue(push)],
       child: MaterialApp(
         theme: buildTheme(Palette.light, Brightness.light),
-        home: DashboardShell(email: 'owner@example.com', signOut: () async {}),
+        home: DashboardShell(email: 'owner@example.com', signOut: signOut ?? () async {}),
       ),
     ),
   );

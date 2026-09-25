@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:fitness_api/fitness_api.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,7 +12,9 @@ import 'api/auth_interceptor.dart';
 import 'api/slow_requests.dart';
 import 'auth/auth_service.dart';
 import 'data/dashboard.dart';
+import 'data/push.dart';
 import 'firebase_options.dart';
+import 'push/push_service.dart';
 import 'ui/auth_gate.dart';
 import 'ui/shell.dart';
 import 'ui/sign_in_screen.dart';
@@ -37,14 +41,21 @@ Future<void> main() async {
   // token comes from Firebase on every request, refreshed when it expires.
   final api = FitnessApi(dio: dio, interceptors: [AuthInterceptor(auth.idToken), const SlowRequestInterceptor()]);
 
-  runApp(FitnessApp(auth: auth, api: api));
+  // The report push reaches Android and the browser build (ADR-030); iOS
+  // would need an APNs key first.
+  final push = kIsWeb || defaultTargetPlatform == TargetPlatform.android
+      ? FirebasePushService(FirebaseMessaging.instance)
+      : null;
+
+  runApp(FitnessApp(auth: auth, api: api, push: push));
 }
 
 class FitnessApp extends StatelessWidget {
-  const FitnessApp({super.key, required this.auth, required this.api});
+  const FitnessApp({super.key, required this.auth, required this.api, this.push});
 
   final AuthService auth;
   final FitnessApi api;
+  final PushService? push;
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +70,7 @@ class FitnessApp extends StatelessWidget {
         // A fresh scope per sign-in, so a second account never sees the
         // first one's data while its own loads.
         signedIn: (_) => ProviderScope(
-          overrides: [apiProvider.overrideWithValue(api)],
+          overrides: [apiProvider.overrideWithValue(api), pushServiceProvider.overrideWithValue(push)],
           child: DashboardShell(email: auth.email, signOut: auth.signOut),
         ),
       ),
