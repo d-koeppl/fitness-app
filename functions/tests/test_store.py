@@ -176,8 +176,10 @@ def test_pending_drinks_are_unclaimed_and_logged_live(store):
     ids = [d.id for d in store.pending_drinks()]
     assert len(ids) == 2
 
-    store.claim_drinks(ids[:1], report_id=7)
+    # Claimed in the batch that writes the report that counted it.
+    store.put_report(_report(7, T0), claim_drink_ids=ids[:1])
     assert [d.id for d in store.pending_drinks()] == ids[1:]
+    assert store.latest_report().id == 7
 
 
 def test_drink_ids_are_fresh_and_increasing(store):

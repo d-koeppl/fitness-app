@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from fastapi.testclient import TestClient
 
+from api.analysis import gemini
 from api.main import app
 from api.services import drinks
 from api.store.firestore import get_store
@@ -115,7 +116,7 @@ def test_minus_one_at_zero_is_a_no_op(db):
 def test_minus_one_cannot_reach_a_drink_a_report_already_counted(db):
     counted = _log(db, datetime(2026, 9, 5, 21, 0, tzinfo=UTC))
     report = _report(db, datetime(2026, 9, 6, 8, 0, tzinfo=UTC))
-    drinks.close_out(db, report.id)
+    drinks.close_out(db, report)
 
     counter = drinks.remove_last(db)
 
@@ -132,14 +133,14 @@ def test_closing_out_claims_every_pending_drink_and_zeroes_the_counter(db):
     _log(db, datetime(2026, 9, 6, 21, 0, tzinfo=UTC))
     report = _report(db, datetime(2026, 9, 7, 8, 0, tzinfo=UTC))
 
-    assert drinks.close_out(db, report.id) == 2
+    assert drinks.close_out(db, report) == 2
     assert drinks.pending(db).count == 0
 
 
 def test_drinks_logged_after_a_close_out_start_the_next_counter(db):
     _log(db, datetime(2026, 9, 6, 20, 0, tzinfo=UTC))
     report = _report(db, datetime(2026, 9, 7, 8, 0, tzinfo=UTC))
-    drinks.close_out(db, report.id)
+    drinks.close_out(db, report)
 
     _log(db, datetime(2026, 9, 7, 19, 0, tzinfo=UTC))
 
@@ -200,7 +201,7 @@ def test_typing_the_same_number_changes_nothing(db):
 def test_typing_zero_clears_the_counter_but_not_the_history(db):
     counted = _log(db, datetime(2026, 9, 5, 21, 0, tzinfo=UTC))
     report = _report(db, datetime(2026, 9, 6, 8, 0, tzinfo=UTC))
-    drinks.close_out(db, report.id)
+    drinks.close_out(db, report)
     _log(db, datetime(2026, 9, 6, 20, 0, tzinfo=UTC))
 
     assert drinks.set_count(db, 0).count == 0
@@ -214,7 +215,7 @@ def test_a_typed_number_cannot_reach_a_counted_drink(db):
     _log(db, datetime(2026, 9, 5, 20, 0, tzinfo=UTC))
     _log(db, datetime(2026, 9, 5, 21, 0, tzinfo=UTC))
     report = _report(db, datetime(2026, 9, 6, 8, 0, tzinfo=UTC))
-    drinks.close_out(db, report.id)
+    drinks.close_out(db, report)
 
     assert drinks.set_count(db, 3).count == 3
     assert len(drinks.daily_counts(db, date(2026, 9, 1))) == 2  # two days, 2 + 3
@@ -229,7 +230,7 @@ def test_daily_counts_groups_by_local_day_and_keeps_counted_drinks(db):
     _log(db, datetime(2026, 9, 6, 21, 0, tzinfo=UTC))
     _log(db, datetime(2026, 9, 6, 22, 30, tzinfo=UTC))
     report = _report(db, datetime(2026, 9, 7, 8, 0, tzinfo=UTC))
-    drinks.close_out(db, report.id)
+    drinks.close_out(db, report)
 
     history = drinks.daily_counts(db, date(2026, 9, 1))
 
@@ -249,6 +250,45 @@ def test_daily_counts_starts_at_the_window(db):
 
 
 # --- what the report and the coach are told --------------------------------
+
+
+def test_the_context_leaves_alcohol_out_until_something_is_logged(db):
+    assert gemini._serialize_alcohol(db, date(2026, 9, 7), 14) is None
+
+
+def test_the_context_carries_the_counter_and_the_history(db):
+    _log(db, datetime(2026, 9, 6, 19, 0, tzinfo=UTC))
+    _log(db, datetime(2026, 9, 6, 21, 0, tzinfo=UTC))
+
+    payload = gemini._serialize_alcohol(db, date(2026, 9, 7), 14)
+
+    assert payload["since_last_report"]["count"] == 2
+    assert payload["since_last_report"]["first_logged_at"] is not None
+    assert [d["count"] for d in payload["daily_counts"]] == [2]
+    # The size of a drink travels with the count — a bare "2" is not a dose.
+    assert "0.5 L beer" in payload["unit"]
+
+
+def test_a_zero_counter_still_reaches_the_model_once_there_is_history(db):
+    """A dry night is worth reporting; a user who has never touched the
+    button is not. Only the second case drops out (the test above)."""
+    _log(db, datetime(2026, 9, 6, 19, 0, tzinfo=UTC))
+    report = _report(db, datetime(2026, 9, 7, 8, 0, tzinfo=UTC))
+    drinks.close_out(db, report)
+
+    payload = gemini._serialize_alcohol(db, date(2026, 9, 7), 14)
+
+    assert payload["since_last_report"]["count"] == 0
+    assert [d["count"] for d in payload["daily_counts"]] == [1]
+
+
+def test_the_report_sees_a_filled_in_day_in_the_history_and_a_quiet_counter(db):
+    drinks.set_day(db, _today() - timedelta(days=3), 4)
+
+    payload = gemini._serialize_alcohol(db, _today(), 14)
+
+    assert payload["since_last_report"]["count"] == 0
+    assert [d["count"] for d in payload["daily_counts"]] == [4]
 
 
 # --- the endpoints ---------------------------------------------------------
@@ -310,7 +350,7 @@ def test_a_day_filled_in_afterwards_is_never_claimed_by_the_next_report(db):
     drinks.set_day(db, _today() - timedelta(days=3), 2)
     report = _report(db, datetime.now(UTC))
 
-    assert drinks.close_out(db, report.id) == 0
+    assert drinks.close_out(db, report) == 0
     assert drinks.pending(db).count == 0
     # Still there, still on its own day.
     assert sum(d.count for d in drinks.daily_counts(db, _today() - timedelta(days=7))) == 2
@@ -340,7 +380,7 @@ def test_an_earlier_day_can_be_raised_above_what_a_report_counted(db):
     _log_on(db, day)
     _log_on(db, day, hour=22)
     report = _report(db, datetime.now(UTC))
-    drinks.close_out(db, report.id)
+    drinks.close_out(db, report)
 
     tally = drinks.set_day(db, day, 5)
 
@@ -354,7 +394,7 @@ def test_an_earlier_day_cannot_be_cut_below_what_a_report_counted(db):
     _log_on(db, day)
     _log_on(db, day, hour=22)
     report = _report(db, datetime.now(UTC))
-    drinks.close_out(db, report.id)
+    drinks.close_out(db, report)
 
     with pytest.raises(ValueError, match="already counted 2"):
         drinks.set_day(db, day, 1)
@@ -452,7 +492,7 @@ def test_the_day_list_says_how_many_of_a_day_a_report_already_counted(db):
     day = _today() - timedelta(days=1)
     _log_on(db, day)
     report = _report(db, datetime.now(UTC))
-    drinks.close_out(db, report.id)
+    drinks.close_out(db, report)
     drinks.set_day(db, day, 3)
 
     listed = next(d for d in drinks.day_history(db, 3) if d.date == day)

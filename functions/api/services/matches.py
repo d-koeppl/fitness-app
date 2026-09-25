@@ -24,6 +24,16 @@ from api.config import settings
 from api.integrations.google_health import local_tz
 from api.store.firestore import FirestoreStore
 from api.store.like import ilike
+from api.store.rows import MatchPerformance
+
+
+def newest_first(store: FirestoreStore) -> list[MatchPerformance]:
+    """Every logged match, newest first, undated rows before all of them —
+    Postgres' `ORDER BY match_date DESC` puts NULLs first, and this keeps
+    its order. Shared by GET /matches and the report context."""
+    return sorted(
+        store.matches(), key=lambda m: (m.match_date is None, m.match_date or date.min), reverse=True
+    )
 
 
 @dataclass(frozen=True)

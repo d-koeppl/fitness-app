@@ -289,3 +289,35 @@ def test_a_failing_source_does_not_stop_the_others(monkeypatch):
     results = refresh.refresh_google_sources(object())
     assert results == {"health": "failed: revoked", "heart_rate": "ok", "calendar": "ok"}
     assert ran == ["hr", "cal"]
+
+
+def test_the_fallback_report_runs_only_in_its_hour_and_after_the_sync(sources, monkeypatch):
+    from api.analysis import gemini
+    from api.config import settings
+
+    def fallback(store):
+        sources.append("report")
+        return "ok (report 1)"
+
+    monkeypatch.setattr(gemini, "run_daily_fallback", fallback)
+
+    jobs.run_hourly(object(), datetime(2026, 9, 25, 14, 30, tzinfo=VIENNA))
+    assert "report" not in sources
+
+    results = jobs.run_hourly(object(), datetime(2026, 9, 25, settings.wake_fallback_hour, 30, tzinfo=VIENNA))
+    # After the sync, so the report reads data at most a minute old.
+    assert sources[-4:] == ["health", "heart_rate", "calendar", "report"]
+    assert results["report"] == "ok (report 1)"
+
+
+def test_a_failed_fallback_report_is_logged_not_raised(sources, monkeypatch):
+    from api.analysis import gemini
+    from api.config import settings
+
+    def boom(store):
+        raise RuntimeError("GEMINI_API_KEY is not set")
+
+    monkeypatch.setattr(gemini, "run_daily_fallback", boom)
+    results = jobs.run_hourly(object(), datetime(2026, 9, 25, settings.wake_fallback_hour, 30, tzinfo=VIENNA))
+    assert results["report"] == "failed: GEMINI_API_KEY is not set"
+    assert results["health"] == "ok"

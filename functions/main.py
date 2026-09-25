@@ -7,10 +7,10 @@ Firebase discovers functions by importing this module.
   routers, schemas and /openapi.json carry over from the old backend.
 - `jobs` is the hourly sync (api/jobs.py), on Cloud Scheduler.
 
-Both read the same three secrets from Secret Manager: the Fernet key the
-Google tokens are encrypted with, and the OAuth client that refreshes
-them. Firebase exposes them as environment variables, which is where
-api/config.py already looks.
+Both read the same four secrets from Secret Manager: the Fernet key the
+Google tokens are encrypted with, the OAuth client that refreshes them,
+and the Gemini key the reports are written with. Firebase exposes them as
+environment variables, which is where api/config.py already looks.
 """
 
 from __future__ import annotations
@@ -38,10 +38,11 @@ options.set_global_options(region="europe-west1", max_instances=3)
 logging.getLogger("api").setLevel(logging.INFO)
 logging.basicConfig(format="%(levelname)s %(name)s: %(message)s")
 
-GOOGLE_SECRETS = [
+SECRETS = [
     SecretParam("TOKEN_ENCRYPTION_KEY"),
     SecretParam("GOOGLE_CLIENT_ID"),
     SecretParam("GOOGLE_CLIENT_SECRET"),
+    SecretParam("GEMINI_API_KEY"),
 ]
 
 
@@ -58,10 +59,11 @@ def _wsgi_app() -> ASGIMiddleware:
 
 @https_fn.on_request(
     memory=options.MemoryOption.MB_512,
-    secrets=GOOGLE_SECRETS,
-    # POST /sync pulls three Google sources in one request; the default
-    # 60 s is not always enough for a cold instance.
-    timeout_sec=120,
+    secrets=SECRETS,
+    # POST /sync pulls three Google sources in one request, and a report
+    # waits on Gemini for up to a minute per attempt (a 503 is retried);
+    # the default 60 s is not enough for either on a cold instance.
+    timeout_sec=300,
 )
 def api(req: https_fn.Request) -> https_fn.Response:
     # buffered=True reads the body and closes the WSGI iterator here, which
@@ -80,7 +82,7 @@ def api(req: https_fn.Request) -> https_fn.Response:
     # CPU allowance at one run an hour (see the port plan).
     cpu=1,
     timeout_sec=540,
-    secrets=GOOGLE_SECRETS,
+    secrets=SECRETS,
     # A failed run is retried by the next hourly one; Scheduler retries on
     # top would double the Google requests for nothing.
     retry_count=0,

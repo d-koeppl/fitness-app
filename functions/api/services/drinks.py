@@ -39,7 +39,7 @@ from zoneinfo import ZoneInfo
 
 from api.integrations.google_health import local_tz
 from api.store.firestore import FirestoreStore
-from api.store.rows import DrinkLog
+from api.store.rows import AiReport, DrinkLog
 
 # What one tap is. A constant rather than a setting: the button says "0.5 L
 # beer" on it, and a stored row means nothing without knowing what it was
@@ -215,21 +215,19 @@ def set_count(store: FirestoreStore, count: int) -> PendingDrinks:
     return pending(store)
 
 
-def close_out(store: FirestoreStore, report_id: int) -> int:
-    """Claim every pending drink for `report_id` — the reset.
+def close_out(store: FirestoreStore, report: AiReport) -> int:
+    """Store `report` and claim every pending drink for it — the reset.
 
     Called only for the first report of a local day (ADR-019); the caller
     owns that decision, because it has to be taken *before* the new report
-    row exists. Returns how many drinks were claimed, which is the number
-    that report was written about.
+    exists. Returns how many drinks were claimed, which is the number that
+    report was written about.
 
-    Called after the report is stored: a report that fails to save must
-    not have reset the counter. (In Postgres this was one transaction;
-    phase 5 decides whether the report write and this claim share a
-    Firestore batch.)
+    One Firestore batch, as it was one transaction in Postgres: a report
+    that fails to save must not have reset the counter.
     """
     rows = _pending_rows(store)
-    store.claim_drinks([row.id for row in rows], report_id)
+    store.put_report(report, claim_drink_ids=[row.id for row in rows])
     return len(rows)
 
 

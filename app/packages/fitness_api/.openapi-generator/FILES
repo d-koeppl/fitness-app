@@ -36,6 +36,7 @@ lib/src/model/measurement_out.dart
 lib/src/model/missing_match_out.dart
 lib/src/model/o_auth_callback_out.dart
 lib/src/model/o_auth_login_out.dart
+lib/src/model/refresh_report_out.dart
 lib/src/model/score_point_out.dart
 lib/src/model/session_heart_rate_out.dart
 lib/src/model/skip_in.dart

@@ -7,10 +7,11 @@ every hour, local time, and does:
 - every hour: Google Health, then its heart-rate traces, then the calendar
   — the same three sources, in the same order, that POST /sync runs;
 - at OEFB_SYNC_HOUR only: the ÖFB scrape, which looks back
-  OEFB_SYNC_DAYS_BACK days so a night the site was down is caught up.
-
-The 18:00 end-of-day fallback report joins this job in phase 5, with the
-report code it runs.
+  OEFB_SYNC_DAYS_BACK days so a night the site was down is caught up;
+- at WAKE_FALLBACK_HOUR only (18, so 18:30): the end-of-day fallback
+  report, if nothing else made one today (ADR-004). It runs after the
+  sync, so it reports on data at most a minute old — the old scheduler's
+  18:00 job reported on whatever the last half-hourly sync had left.
 
 Kept apart from main.py so the schedule logic is plain Python a test can
 call with any clock.
@@ -46,6 +47,15 @@ def run_hourly(store: FirestoreStore, now: datetime) -> dict[str, str]:
         except Exception as exc:  # noqa: BLE001 — logged, and the Google results still count
             logger.exception("ÖFB scrape failed")
             results["oefb"] = f"failed: {exc}"
+
+    if now.hour == settings.wake_fallback_hour:
+        from api.analysis.gemini import run_daily_fallback
+
+        try:
+            results["report"] = run_daily_fallback(store)
+        except Exception as exc:  # noqa: BLE001 — logged; the sync above still counts
+            logger.exception("Daily fallback report failed")
+            results["report"] = f"failed: {exc}"
 
     logger.info("Hourly job at %s: %s", now.isoformat(timespec="minutes"), results)
     return results

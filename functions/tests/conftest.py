@@ -45,6 +45,18 @@ def neutral_settings(monkeypatch):
         monkeypatch.setattr(settings, name, value)
 
 
+@pytest.fixture(autouse=True)
+def forget_gemini_models():
+    """The rolling fallback remembers the model list and what the primary
+    served, process-wide (ADR-025). One test's answer must not be the next
+    test's starting point."""
+    from api.integrations import gemini_models
+
+    gemini_models._reset()
+    yield
+    gemini_models._reset()
+
+
 def _clear_emulator(host: str) -> None:
     request = urllib.request.Request(
         f"http://{host}/emulator/v1/projects/{TEST_PROJECT}/databases/(default)/documents",

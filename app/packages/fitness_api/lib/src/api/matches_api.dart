@@ -18,7 +18,7 @@ class MatchesApi {
   const MatchesApi(this._dio);
 
   /// List Matches
-  /// Newest first, undated rows before all of them — Postgres&#39; &#x60;ORDER BY match_date DESC&#x60; puts NULLs first, and this keeps its order.
+  /// Newest first, undated rows before all of them.
   ///
   /// Parameters:
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation

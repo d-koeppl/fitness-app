@@ -601,8 +601,13 @@ class FirestoreStore:
         )
         return any(True for _ in query.stream())
 
-    def put_report(self, row: AiReport) -> None:
-        self._db.collection("reports").document(str(row.id)).set(
+    def put_report(self, row: AiReport, claim_drink_ids: Iterable[int] = ()) -> None:
+        """Write a report, and claim `claim_drink_ids` for it in the same
+        batch — so a report that fails to save cannot leave the beer
+        counter reset behind it (ADR-019)."""
+        batch = self._db.batch()
+        batch.set(
+            self._db.collection("reports").document(str(row.id)),
             {
                 "id": row.id,
                 "created_at": _ts(row.created_at),
@@ -614,8 +619,11 @@ class FirestoreStore:
                 "period_end": _d(row.period_end),
                 "insights": _json(row.insights),
                 "tokens_used": row.tokens_used,
-            }
+            },
         )
+        for drink_id in claim_drink_ids:
+            batch.update(self._db.collection("drinks").document(str(drink_id)), {"counted_report_id": row.id})
+        batch.commit()
 
     # --- drinks -----------------------------------------------------------------
 
@@ -676,14 +684,6 @@ class FirestoreStore:
         batch = self._db.batch()
         for drink_id in ids:
             batch.delete(self._db.collection("drinks").document(str(drink_id)))
-        batch.commit()
-
-    def claim_drinks(self, ids: Iterable[int], report_id: int) -> None:
-        batch = self._db.batch()
-        for drink_id in ids:
-            batch.update(
-                self._db.collection("drinks").document(str(drink_id)), {"counted_report_id": report_id}
-            )
         batch.commit()
 
     # --- Gemini usage -----------------------------------------------------------
