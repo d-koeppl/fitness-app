@@ -16,9 +16,14 @@ callers itself.
 
 ## Decision
 
-- **The app signs in with Google through Firebase Auth** — a popup on the
-  web, Google's page in a browser tab on Android and iOS — and sends the
-  Firebase ID token as `Authorization: Bearer …` on every request.
+- **The app signs in with Google through Firebase Auth** and sends the
+  Firebase ID token as `Authorization: Bearer …` on every request. The web
+  uses Firebase's popup. Android (and iOS, phase 9) uses the native
+  account picker from `google_sign_in` and hands Google's ID token to
+  Firebase with `signInWithCredential`. The browser-tab flow
+  (`signInWithProvider`) was tried first and failed on Android after the
+  Google login with "missing initial state": Chrome's storage partitioning
+  loses the state Firebase's web handler saved before the redirect.
 - **The API verifies the token with firebase-admin** and then checks the
   token's email against `ALLOWED_EMAILS`. Firebase lets any Google account
   sign in to a project, so verification only says *who* is calling; the
@@ -63,3 +68,7 @@ person.
 the real firebase-admin verification: `/healthz` without a token 200;
 `/me` without a token 401; with a forged token 401; as a second Google
 account 403; as the allowlisted account 200 with its UID and email.
+
+Same day, deployed: `/me` without a token and with a forged one 401, and
+a real Google sign-in as daniel.koeppl10@gmail.com on the Android 16
+emulator answered 200 with that email.
