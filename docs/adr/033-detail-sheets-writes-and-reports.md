@@ -58,10 +58,10 @@ pipeline, which had not moved to Firebase yet.
 
 2026-09-25:
 
-- 413 backend tests on the Firestore emulator, among them the ported
+- 407 backend tests on the Firestore emulator, among them the ported
   Gemini context, retry, budget and fallback tests, and a run that claims
   the counter on the day's first report and not on its second.
-- 175 Flutter tests, 43 of them the ported series cases, and widget tests
+- 174 Flutter tests, 43 of them the ported series cases, and widget tests
   for each write against a fake API.
 - The generated client over real HTTP against the emulators, seeded from
   the production dump: the stepper, an earlier day (and the refusal below
