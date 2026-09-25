@@ -692,6 +692,13 @@ class FirestoreStore:
         snapshot = self._db.collection("gemini_usage").document(day.isoformat()).get()
         return dict((snapshot.to_dict() or {}).get("requests") or {})
 
+    def set_gemini_usage(self, day: date, model: str, requests: int) -> None:
+        """Set a day's count outright — the migration's door, idempotent
+        where `count_gemini_request` is not."""
+        ref = self._db.collection("gemini_usage").document(day.isoformat())
+        ref.set({}, merge=True)
+        ref.update({_field("requests", model): requests, "updated_at": datetime.now(UTC)})
+
     def count_gemini_request(self, day: date, model: str, by: int = 1) -> None:
         ref = self._db.collection("gemini_usage").document(day.isoformat())
         ref.set({}, merge=True)

@@ -89,5 +89,16 @@ Google Health parsing); 130 tests ported from fitness-dashboard's
 test_api, test_drinks, test_heart_rate and test_matches (beer counter,
 ÖFB gap check, heart rate, the ADR-015 coverage rules, skips, training
 status, and the rule that asking for more history changes no number);
-and 19 for the app wiring and auth. The day-by-day comparison against the
-old API on production data is phase 2b.
+and 19 for the app wiring and auth.
+
+Same day, on production data: the dump of 2026-09-25 was migrated into
+the Firestore emulator with `tools/migrate/`, and the old API (restored
+Postgres) and the new one (emulator) were asked the same 432 questions —
+the training status with its whole per-day series (296 days), every daily
+row, all 426 sessions and every stored heart-rate trace (28,281 samples),
+two years of drink history, matches, the calendar and the latest report.
+All 432 answered 200 on both sides, with **0 differences**, floats
+compared exactly. Production configures no max heart rate, so zones are
+never computed there; a second run with `HEALTH_MAX_HR_BPM=190` on both
+sides (21 traces with derived zones, 62,759 seconds in zones) also came
+out with 0 differences. See tools/migrate/README.md.
