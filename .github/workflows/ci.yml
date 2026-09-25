@@ -45,7 +45,8 @@ jobs:
 
       - name: Lint
         working-directory: functions
-        run: ruff check .
+        # The migration tools live outside functions/ but follow its rules.
+        run: ruff check --config pyproject.toml . ../tools
 
       - name: Test
         # Inside emulators:exec, so the store tests run against a real
