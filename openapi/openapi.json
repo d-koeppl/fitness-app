@@ -13,6 +13,30 @@
         ],
         "title": "Health",
         "type": "object"
+      },
+      "Me": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "uid": {
+            "title": "Uid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "uid",
+          "email"
+        ],
+        "title": "Me",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
       }
     }
   },
@@ -38,7 +62,39 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Healthz",
+        "tags": [
+          "meta"
+        ]
+      }
+    },
+    "/me": {
+      "get": {
+        "description": "Who the API thinks is calling \u2014 the app's check that sign-in worked.",
+        "operationId": "getMe",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Me",
         "tags": [
           "meta"
         ]

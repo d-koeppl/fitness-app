@@ -49,9 +49,21 @@ Firebase looks for the virtualenv at exactly that path.
 ## Running locally
 
 ```bash
-firebase emulators:start --only functions,firestore
-cd app && flutter run -d chrome --dart-define=API_BASE_URL=http://127.0.0.1:5001/fitness-75c22/europe-west1/api
+firebase emulators:start --only auth,functions,firestore
+cd app && flutter run -d chrome --dart-define=API_BASE_URL=http://127.0.0.1:5001/fitness-75c22/europe-west1/api --dart-define=AUTH_EMULATOR_HOST=127.0.0.1
 ```
+
+The emulated API reads `functions/.env.local` (copy `functions/.env.example`)
+and only trusts Auth-emulator tokens; the deployed one reads
+`functions/.env.fitness-75c22` and only trusts real ones. Point both
+dart-defines at the emulators or neither.
+
+## Auth
+
+Every API route requires a Firebase ID token whose email is in
+`ALLOWED_EMAILS`, unless its path is in `api.auth.PUBLIC_PATHS`
+([ADR-029](docs/adr/029-firebase-auth-access-gate.md)). Adding to that set
+is a security decision, not a convenience.
 
 ## Documentation
 
