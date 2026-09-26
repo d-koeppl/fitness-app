@@ -8,6 +8,7 @@ the store, and one hourly function runs them all.
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -255,6 +256,9 @@ def sources(monkeypatch):
     import oefb.scraper
 
     monkeypatch.setattr(oefb.scraper, "run", lambda store, days: ran.append(f"oefb:{days}") or 0)
+    import api.services.matches
+
+    monkeypatch.setattr(api.services.matches, "missing_match", lambda store, now: None)
     return ran
 
 
@@ -269,6 +273,51 @@ def test_the_oefb_scrape_runs_only_in_its_hour(sources):
     results = jobs.run_hourly(object(), datetime(2026, 9, 25, settings.oefb_sync_hour, 30, tzinfo=VIENNA))
     assert sources[-1] == f"oefb:{settings.oefb_sync_days_back}"
     assert results["oefb"] == "ok (0 new)"
+
+
+def _missing_yesterday(monkeypatch):
+    import api.services.matches
+    from api.services.matches import MissingMatch
+
+    missing = MissingMatch(
+        day=date(2026, 9, 24),
+        title="Spiel: Union Eidenberg/Geng - Treffling",
+        kickoff=datetime(2026, 9, 24, 16, 0, tzinfo=VIENNA),
+    )
+    monkeypatch.setattr(api.services.matches, "missing_match", lambda store, now: missing)
+
+
+def test_a_game_missing_after_the_scrape_is_logged_as_an_error(sources, monkeypatch, caplog):
+    from api.config import settings
+
+    _missing_yesterday(monkeypatch)
+    with caplog.at_level(logging.ERROR, logger="api.jobs"):
+        results = jobs.run_hourly(object(), datetime(2026, 9, 25, settings.oefb_sync_hour, 30, tzinfo=VIENNA))
+    assert results["oefb"] == "ok (0 new)"
+    messages = [r.getMessage() for r in caplog.records]
+    assert any("no data for yesterday's game" in m and "Treffling" in m for m in messages)
+
+
+def test_the_missing_game_check_runs_even_when_the_scrape_fails(sources, monkeypatch, caplog):
+    import oefb.scraper
+    from api.config import settings
+
+    def boom(store, days):
+        raise RuntimeError("anubis")
+
+    monkeypatch.setattr(oefb.scraper, "run", boom)
+    _missing_yesterday(monkeypatch)
+    with caplog.at_level(logging.ERROR, logger="api.jobs"):
+        results = jobs.run_hourly(object(), datetime(2026, 9, 25, settings.oefb_sync_hour, 30, tzinfo=VIENNA))
+    assert results["oefb"] == "failed: anubis"
+    assert any("no data for yesterday's game" in r.getMessage() for r in caplog.records)
+
+
+def test_the_missing_game_check_runs_only_in_the_scrape_hour(sources, monkeypatch, caplog):
+    _missing_yesterday(monkeypatch)
+    with caplog.at_level(logging.ERROR, logger="api.jobs"):
+        jobs.run_hourly(object(), datetime(2026, 9, 25, 14, 30, tzinfo=VIENNA))
+    assert not caplog.records
 
 
 def test_a_failing_source_does_not_stop_the_others(monkeypatch):

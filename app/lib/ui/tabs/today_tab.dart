@@ -142,11 +142,14 @@ class TodayTab extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 16),
-        _ReportCard(
-          report: data.report,
-          error: state.errors.report,
-          generateError: newReport.error,
-          loaded: state.reportLoaded,
+        // Selectable, so the report can be copied out as on the web.
+        SelectionArea(
+          child: _ReportCard(
+            report: data.report,
+            error: state.errors.report,
+            generateError: newReport.error,
+            loaded: state.reportLoaded,
+          ),
         ),
         if (!data.healthConnected && state.lastSynced != null) ...[
           const SizedBox(height: 16),

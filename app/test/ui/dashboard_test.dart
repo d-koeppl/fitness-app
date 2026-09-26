@@ -1,6 +1,7 @@
 // The dashboard against a fake API: canned JSON per path, answered by a
 // Dio interceptor, so the generated client, the Riverpod state and the
 // widgets are all exercised without a network.
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'fake_api.dart';
@@ -24,6 +25,9 @@ void main() {
     expect(find.text('HRV rebounded strongly'), findsOneWidget);
     expect(find.text('Moderate Readiness'), findsOneWidget);
     expect(find.text('Keep tonight light.'), findsOneWidget);
+    // The report can be selected and copied, as on the web.
+    final headline = find.text('HRV rebounded strongly');
+    expect(find.ancestor(of: headline, matching: find.byType(SelectionArea)), findsOneWidget);
   });
 
   testWidgets('Fitness shows the training status and the matches', (tester) async {

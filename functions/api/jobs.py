@@ -7,7 +7,9 @@ every hour, local time, and does:
 - every hour: Google Health, then its heart-rate traces, then the calendar
   — the same three sources, in the same order, that POST /sync runs;
 - at OEFB_SYNC_HOUR only: the ÖFB scrape, which looks back
-  OEFB_SYNC_DAYS_BACK days so a night the site was down is caught up;
+  OEFB_SYNC_DAYS_BACK days so a night the site was down is caught up,
+  then logs an ERROR if the calendar had a game yesterday that the ÖFB
+  log still lacks (as fitness-dashboard's scheduler did);
 - at WAKE_FALLBACK_HOUR only (18, so 18:30): the end-of-day fallback
   report, if nothing else made one today (ADR-004). It runs after the
   sync, so it reports on data at most a minute old — the old scheduler's
@@ -50,6 +52,7 @@ def run_hourly(store: FirestoreStore, now: datetime) -> dict[str, str]:
         except Exception as exc:  # noqa: BLE001 — logged, and the Google results still count
             logger.exception("ÖFB scrape failed")
             results["oefb"] = f"failed: {exc}"
+        _log_missing_match(store, now)
 
     last_try = now.hour == (settings.wake_fallback_hour + 1) % 24
     if now.hour == settings.wake_fallback_hour or last_try:
@@ -63,3 +66,28 @@ def run_hourly(store: FirestoreStore, now: datetime) -> dict[str, str]:
 
     logger.info("Hourly job at %s: %s", now.isoformat(timespec="minutes"), results)
     return results
+
+
+def _log_missing_match(store: FirestoreStore, now: datetime) -> None:
+    """After the scrape, whether it got yesterday's game — as the old
+    scheduler did.
+
+    The scraper logs and returns on a failed fetch rather than raising, so
+    a dead ÖFB page looks like a quiet night. The calendar knows better: if
+    it had a fixture yesterday and the log still has no game that day, say
+    so at ERROR. Runs even when the scrape raised."""
+    from api.services.matches import missing_match
+
+    try:
+        missing = missing_match(store, now)
+    except Exception:  # noqa: BLE001 — a failed check must not fail the job
+        logger.exception("Could not check the ÖFB log for yesterday's game")
+        return
+    if missing is not None:
+        logger.error(
+            "ÖFB scrape has no data for yesterday's game %r (%s, kick-off %s): the scrape "
+            "failed, the report isn't online yet, you weren't in the squad, or it was called off",
+            missing.title,
+            missing.day,
+            missing.kickoff.isoformat(),
+        )
