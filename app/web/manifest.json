@@ -1,11 +1,11 @@
 {
-    "name": "fitness",
-    "short_name": "fitness",
+    "name": "Fitness Dashboard",
+    "short_name": "Fitness",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "Personal fitness dashboard",
+    "background_color": "#1E8E3E",
+    "theme_color": "#1E8E3E",
+    "description": "Personal fitness dashboard: calendar, health, and match performance in one place.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

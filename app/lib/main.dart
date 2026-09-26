@@ -5,6 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:fitness_api/fitness_api.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'api/api_config.dart';
@@ -48,6 +49,12 @@ Future<void> main() async {
       : null;
 
   runApp(FitnessApp(auth: auth, api: api, push: push));
+
+  // The web build draws to a canvas, so without the semantics tree a
+  // screen reader or a browser extension finds no text on the page (the
+  // web app it replaced was plain HTML). Flutter builds that tree only
+  // when it detects assistive technology; ask for it always instead.
+  if (kIsWeb) SemanticsBinding.instance.ensureSemantics();
 }
 
 class FitnessApp extends StatelessWidget {
@@ -60,7 +67,8 @@ class FitnessApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Fitness',
+      // The browser tab's title on the web, as the old web app's was.
+      title: 'Fitness Dashboard',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(Palette.light, Brightness.light),
       darkTheme: buildTheme(Palette.dark, Brightness.dark),

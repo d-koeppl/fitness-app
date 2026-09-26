@@ -334,7 +334,7 @@ class _Matches extends ConsumerWidget {
     if (error != null) {
       body = Notice('Could not load matches: $error', tone: NoticeTone.error);
     } else if (matches.isEmpty) {
-      body = const Notice('No matches yet — run the ÖFB scraper to populate the database.');
+      body = const Notice('No matches yet. The ÖFB match reports are checked every night at 03:30.');
     } else {
       body = Column(
         children: [
