@@ -131,4 +131,4 @@ def test_the_fcm_message(monkeypatch):
     assert message.notification.body == "Legs are fresh after two easy days."
     assert message.data == {"report_id": "7"}
     assert message.android.notification.tag == "report"
-    assert message.webpush.fcm_options.link == "https://fitness-75c22.web.app"
+    assert message.webpush.fcm_options.link == "https://fitness.koeppl.cc"
