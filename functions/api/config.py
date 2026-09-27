@@ -37,10 +37,12 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # --- access (ADR-029) -------------------------------------------------
-    # The Flutter web build is served from Firebase Hosting; the two
-    # domains below are the ones Hosting gives every project. Native
-    # Android/iOS requests carry no Origin and are not subject to CORS.
+    # The Flutter web build is served from Firebase Hosting: on the custom
+    # domain (DNS at Cloudflare, not proxied) and on the two domains Hosting
+    # gives every project. Native Android/iOS requests carry no Origin and
+    # are not subject to CORS.
     cors_allow_origins: list[str] = [
+        "https://fitness.koeppl.cc",
         "https://fitness-75c22.web.app",
         "https://fitness-75c22.firebaseapp.com",
     ]
@@ -51,7 +53,7 @@ class Settings(BaseSettings):
 
     # What a click on the report push opens in a browser (ADR-030). The
     # Android app opens itself instead and ignores this.
-    web_app_url: str = "https://fitness-75c22.web.app"
+    web_app_url: str = "https://fitness.koeppl.cc"
 
     # The Google accounts allowed to use the API, as a JSON list:
     # ALLOWED_EMAILS=["someone@gmail.com"]. Empty means nobody: a deploy
