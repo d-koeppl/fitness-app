@@ -272,18 +272,23 @@ class _DrinkTileState extends State<DrinkTile> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  'Beer',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TypeScale.labelLarge.copyWith(color: tone.fg),
+                // On a phone the disc and steppers leave the label about
+                // 40dp, which a raised system font size overruns: shrink
+                // the word rather than cut it to "B…".
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text('Beer', maxLines: 1, style: TypeScale.labelLarge.copyWith(color: tone.fg)),
                 ),
                 if (sub != null)
-                  Text(
-                    sub,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TypeScale.labelSmall.copyWith(color: tone.fg.withValues(alpha: 0.85)),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      sub,
+                      maxLines: 1,
+                      style: TypeScale.labelSmall.copyWith(color: tone.fg.withValues(alpha: 0.85)),
+                    ),
                   ),
               ],
             ),
