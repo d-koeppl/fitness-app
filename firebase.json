@@ -17,7 +17,13 @@
     "public": "app/build/web",
     "predeploy": ["cd app && dart run tool/build_web.dart"],
     "ignore": ["firebase.json", "**/.*"],
-    "rewrites": [{ "source": "!/.well-known/**", "destination": "/index.html" }]
+    "rewrites": [{ "source": "!/.well-known/**", "destination": "/index.html" }],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [{ "key": "Document-Isolation-Policy", "value": "isolate-and-credentialless" }]
+      }
+    ]
   },
   "emulators": {
     "singleProjectMode": true,
