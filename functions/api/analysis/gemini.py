@@ -383,9 +383,33 @@ _OVERLOADED_STATUS = 503
 _QUOTA_STATUS = 429
 _NOT_FOUND_STATUS = 404
 
+# usageMetadata's counts, in the order the log line prints them. Gemini
+# omits a count that is zero (no cache hit, no thinking), hence the 0s.
+# Thinking tokens are billed as output but are not in candidatesTokenCount.
+_USAGE_FIELDS = (
+    ("prompt", "promptTokenCount"),
+    ("cached", "cachedContentTokenCount"),
+    ("output", "candidatesTokenCount"),
+    ("thinking", "thoughtsTokenCount"),
+    ("total", "totalTokenCount"),
+)
+
+
+def _log_usage(purpose: str, model: str, data: dict) -> None:
+    """One line per answered request, for comparing token costs over time:
+    search Cloud Logging for "Gemini usage". The report also stores its
+    total (AiReport.tokens_used); this is the only record of the chat's."""
+    usage = data.get("usageMetadata") or {}
+    counts = " ".join(f"{name}={usage.get(key, 0)}" for name, key in _USAGE_FIELDS)
+    logger.info("Gemini usage: purpose=%s model=%s %s", purpose, model, counts)
+
 
 def _post_gemini(
-    store: FirestoreStore, body: dict, max_retries: int = 2, only: list[str] | None = None
+    store: FirestoreStore,
+    body: dict,
+    max_retries: int = 2,
+    only: list[str] | None = None,
+    purpose: str = "report",
 ) -> tuple[dict, str]:
     """POST to the Gemini generateContent endpoint; returns the parsed
     response and the model that actually answered.
@@ -397,7 +421,8 @@ def _post_gemini(
     through here too.
 
     `only` narrows the candidates, for the evening report's last try on the
-    fallback model alone (run_daily_fallback)."""
+    fallback model alone (run_daily_fallback). `purpose` only labels the
+    token-usage log line."""
     _require_api_key()
 
     configured = gemini_models.candidates()
@@ -446,6 +471,7 @@ def _post_gemini(
             served = data.get("modelVersion")
             if model == configured[0]:
                 gemini_models.note_primary_answered(served)
+            _log_usage(purpose, served or model, data)
             return data, served or model
 
     # Only reachable when every candidate refused on quota or was gone:
@@ -492,6 +518,7 @@ def chat_completion(store: FirestoreStore, system: str, messages: list[dict]) ->
                 for m in messages
             ],
         },
+        purpose="coach",
     )
     return data["candidates"][0]["content"]["parts"][0]["text"]
 
