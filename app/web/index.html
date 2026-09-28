@@ -18,6 +18,11 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <!--
+    Flutter adds its own viewport tag at start-up. Without this one the
+    loading screen is first laid out at desktop width and jumps when it does.
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Personal fitness dashboard: calendar, health, and match performance in one place.">
   <meta name="theme-color" content="#1E8E3E">
 
