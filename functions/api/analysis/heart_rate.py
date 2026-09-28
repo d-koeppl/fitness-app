@@ -231,3 +231,26 @@ def summarize(samples: list[Sample]) -> TraceSummary | None:
         max_bpm=max(values),
         average_bpm=round(sum(values) / len(values), 1),
     )
+
+
+# --- the highest heart rate on record (ADR-039) -----------------------------
+
+# How many consecutive readings must reach a bpm before it counts as the
+# heart having got there. One is an optical sensor glitching — a lone 230
+# in a trace of 180s — and it would raise the max for good, shifting every
+# zone boundary upwards. Two in a row, a second or two apart, is a heart.
+SUSTAINED_READINGS = 2
+
+
+def sustained_peak(samples: list[Sample], readings: int = SUSTAINED_READINGS) -> int | None:
+    """The highest bpm the trace held for `readings` consecutive samples,
+    or None if it is shorter than that.
+
+    It is the peak of the sliding minimum: each window of `readings`
+    samples is only as high as its lowest reading, so a single spike never
+    lifts one.
+    """
+    values = [bpm for _, bpm in samples]
+    if readings < 1 or len(values) < readings:
+        return None
+    return max(min(values[i : i + readings]) for i in range(len(values) - readings + 1))

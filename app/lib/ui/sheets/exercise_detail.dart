@@ -390,8 +390,8 @@ class _HeartRateSection extends ConsumerWidget {
             Text(
               [
                 value.zones.isEmpty
-                    ? 'Zones need a maximum heart rate — set HEALTH_MAX_HR_BPM (or HEALTH_BIRTH_YEAR) and the trace is '
-                          'coloured by zone.'
+                    ? 'Zones need a resting and a maximum heart rate. The maximum is the highest any workout has '
+                          'recorded, and once there is one the trace is coloured by zone.'
                     : 'Zone boundaries from a resting ${value.restingHr} and a maximum of ${value.maxHr} bpm. Times in '
                           'each zone ${value.zoneSource == 'google' ? 'as Google Health reports them.' : 'counted from the readings here.'}',
                 if (value.sampleCount > value.samples.length)
