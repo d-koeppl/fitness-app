@@ -390,6 +390,22 @@ def test_stored_samples_are_read_defensively(stored, expected):
     assert service._stored_samples(stored) == expected
 
 
+@pytest.mark.parametrize(
+    "bpm, expected",
+    [
+        ([150, 185, 186, 184], 185),
+        # A lone optical spike is not the heart getting there.
+        ([150, 230, 150, 176, 177], 176),
+        ([150, 150], 150),
+        ([150], None),
+        ([], None),
+    ],
+    ids=["held", "lone spike", "exactly two", "too short", "empty"],
+)
+def test_the_peak_is_the_highest_bpm_held_for_two_readings(bpm, expected):
+    assert hr.sustained_peak([(i * 2, b) for i, b in enumerate(bpm)]) == expected
+
+
 def test_max_heart_rate_prefers_the_measured_one_over_the_age_formula(monkeypatch):
     monkeypatch.setattr(settings, "health_max_hr_bpm", 196)
     monkeypatch.setattr(settings, "health_birth_year", 1997)

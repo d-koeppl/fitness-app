@@ -580,6 +580,37 @@ class FirestoreStore:
             }
         )
 
+    def recorded_max_hr(self) -> int | None:
+        """The highest heart rate any stored trace reached, or None before
+        the sync has recorded one (ADR-039)."""
+        snapshot = self._db.collection("meta").document("max_hr").get()
+        bpm = (snapshot.to_dict() or {}).get("bpm") if snapshot.exists else None
+        return int(bpm) if isinstance(bpm, (int, float)) else None
+
+    def raise_recorded_max_hr(self, bpm: int, session_start: datetime) -> bool:
+        """Record `bpm` as the highest heart rate if it is above the one on
+        record. Only ever raises it; returns whether it did.
+
+        A transaction, because the scheduled sync and a Refresh press can
+        both be storing traces at once, and the lower of two racing writes
+        must not land last.
+        """
+        ref = self._db.collection("meta").document("max_hr")
+
+        @firestore.transactional
+        def raise_to(transaction) -> bool:
+            snapshot = ref.get(transaction=transaction)
+            current = (snapshot.to_dict() or {}).get("bpm") if snapshot.exists else None
+            if isinstance(current, (int, float)) and current >= bpm:
+                return False
+            transaction.set(
+                ref,
+                {"bpm": int(bpm), "session_start": _ts(session_start), "updated_at": datetime.now(UTC)},
+            )
+            return True
+
+        return raise_to(self._db.transaction())
+
     # --- skips ------------------------------------------------------------------
 
     def skipped(self) -> list[SkippedActivity]:

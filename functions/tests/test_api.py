@@ -300,6 +300,28 @@ def test_without_a_configured_max_hr_there_are_no_zones_but_still_a_trace(
     assert len(body["samples"]) == 4
 
 
+def test_the_highest_recorded_heart_rate_is_the_max_the_zones_use(client, traced_session, store, monkeypatch):
+    """Nothing configured: the peak on record is the max, and it moves
+    when a workout goes higher (ADR-039)."""
+    monkeypatch.setattr(settings, "health_max_hr_bpm", None)
+    store.raise_recorded_max_hr(191, datetime(2026, 8, 1, tzinfo=UTC))
+    assert client.get("/health-data/exercises/2026-08-20%230/heart-rate").json()["max_hr"] == 191
+
+    store.raise_recorded_max_hr(194, datetime(2026, 8, 2, tzinfo=UTC))
+    assert client.get("/health-data/exercises/2026-08-20%230/heart-rate").json()["max_hr"] == 194
+
+
+def test_a_configured_max_counts_only_when_it_is_higher_than_the_recorded_one(
+    client, traced_session, store, monkeypatch
+):
+    store.raise_recorded_max_hr(193, datetime(2026, 8, 1, tzinfo=UTC))
+    monkeypatch.setattr(settings, "health_max_hr_bpm", 191)
+    assert client.get("/health-data/exercises/2026-08-20%230/heart-rate").json()["max_hr"] == 193
+
+    monkeypatch.setattr(settings, "health_max_hr_bpm", 198)
+    assert client.get("/health-data/exercises/2026-08-20%230/heart-rate").json()["max_hr"] == 198
+
+
 def test_a_session_with_no_trace_yet_is_not_an_error(client, tracked_sessions):
     """200 with nothing in it, and `fetched_at` null — the sync fetches the
     newest sessions first and a bounded number per run, so "not reached yet"

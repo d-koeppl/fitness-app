@@ -21,7 +21,7 @@ from api.ingest import health as health_ingest
 from api.ingest import heart_rate as ingest
 from api.ingest import refresh
 from api.services import sessions as hr_sessions
-from api.store.rows import DailyHealth
+from api.store.rows import DailyHealth, ExerciseHeartRate
 from tests.legacy_db import DailyHealth as LegacyDailyHealth
 
 VIENNA = ZoneInfo("Europe/Vienna")
@@ -223,6 +223,54 @@ def test_heart_rate_sync_stores_a_trace_and_an_empty_one(store, monkeypatch):
     assert traces[days[1]].samples == [[0, 120], [5, 125]]
     assert traces[days[1]].zone_seconds == {"CARDIO": 5.0}
     assert traces[days[0]].samples == [] and traces[days[0]].zone_seconds == {}
+
+
+def _sync_one_session(store, monkeypatch, day, bpm):
+    store.put_health_days([_health_row_with_session(day)])
+    monkeypatch.setattr(
+        ingest,
+        "fetch_heart_rate_samples",
+        lambda start, end: [(start + timedelta(seconds=2 * i), b) for i, b in enumerate(bpm)],
+    )
+    monkeypatch.setattr(ingest, "fetch_time_in_zones", lambda start, end: {})
+    assert ingest.sync_exercise_heart_rate(store) == 1
+
+
+def test_a_workout_that_goes_higher_raises_the_recorded_max_hr(store, monkeypatch):
+    today = datetime.now(VIENNA).date()
+    _sync_one_session(store, monkeypatch, today - timedelta(days=3), [150, 186, 187, 180])
+    assert store.recorded_max_hr() == 186
+
+    _sync_one_session(store, monkeypatch, today - timedelta(days=2), [150, 191, 191, 170])
+    assert store.recorded_max_hr() == 191
+
+
+def test_an_easier_workout_or_a_lone_spike_never_moves_it(store, monkeypatch):
+    today = datetime.now(VIENNA).date()
+    _sync_one_session(store, monkeypatch, today - timedelta(days=3), [150, 186, 187, 180])
+    _sync_one_session(store, monkeypatch, today - timedelta(days=2), [140, 160, 160, 150])
+    _sync_one_session(store, monkeypatch, today - timedelta(days=1), [150, 240, 150, 150])
+
+    assert store.recorded_max_hr() == 186
+
+
+def test_the_first_sync_seeds_the_max_from_traces_already_stored(store, monkeypatch):
+    """Traces stored before the max was kept — here, one older than the
+    sync window — count too."""
+    long_ago = date(2025, 5, 1)
+    store.put_hr_trace(
+        ExerciseHeartRate(
+            session_start=datetime(2025, 5, 1, 17, 0, tzinfo=VIENNA),
+            date=long_ago,
+            samples=[[0, 150], [2, 193], [4, 193], [6, 170]],
+            fetched_at=datetime(2025, 5, 2, tzinfo=VIENNA),
+        )
+    )
+    monkeypatch.setattr(ingest, "fetch_heart_rate_samples", lambda start, end: [])
+
+    ingest.sync_exercise_heart_rate(store)
+
+    assert store.recorded_max_hr() == 193
 
 
 def test_a_failed_heart_rate_fetch_stores_nothing(store, monkeypatch):

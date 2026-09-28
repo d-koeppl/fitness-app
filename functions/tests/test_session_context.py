@@ -272,7 +272,7 @@ def test_without_a_max_hr_the_readings_still_come_through_unzoned(run, monkeypat
     heart_rate = attached_sessions(run, ["2026-08-20#0"]).sessions[0]["heart_rate"]
     assert heart_rate["samples"]
     assert "zones" not in heart_rate
-    assert "HEALTH_MAX_HR_BPM" in heart_rate["zones_note"]
+    assert "highest one recorded" in heart_rate["zones_note"]
 
 
 def test_an_id_that_no_longer_resolves_is_reported_not_dropped(run):

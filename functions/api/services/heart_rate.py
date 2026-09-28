@@ -16,10 +16,10 @@ presented as Google's.
 
 The zone *boundaries* are always ours: the API does not publish them (see
 api/analysis/heart_rate.py). They need a resting HR, which is measured and
-comes from the daily rows, and a max HR, which is not and has to be
-configured. Without one there are no bands, no zone times and no colouring
-— the sheet then shows the plain trace, which is still every reading the
-watch took.
+comes from the daily rows, and a max HR — the highest the watch has ever
+recorded (ADR-039), or a configured one if that is higher. Without either
+there are no bands, no zone times and no colouring — the sheet then shows
+the plain trace, which is still every reading the watch took.
 """
 
 from __future__ import annotations
@@ -190,6 +190,19 @@ def _zone_times(
     ], source
 
 
+def max_heart_rate(store: FirestoreStore) -> int | None:
+    """The max HR the zones are measured from, or None (ADR-039).
+
+    The higher of the highest heart rate on record and the configured one.
+    A recorded peak is a floor under the true maximum — the heart got at
+    least that high — so a configured number or an age formula below it is
+    simply out of date, and the zones follow the new peak without anyone
+    editing a setting.
+    """
+    candidates = [bpm for bpm in (store.recorded_max_hr(), settings.max_heart_rate) if bpm]
+    return max(candidates) if candidates else None
+
+
 def session_heart_rate(
     store: FirestoreStore, session_id: str, max_points: int | None = None
 ) -> SessionHeartRate | None:
@@ -212,7 +225,7 @@ def session_heart_rate(
     samples = _stored_samples(row)
 
     resting_hr = _resting_hr(store, session.date)
-    max_hr = settings.max_heart_rate
+    max_hr = max_heart_rate(store)
     bands = zone_bands(max_hr, resting_hr)
     zones, zone_source = _zone_times(bands, samples, row.zone_seconds if row else {})
     stats = summarize(samples)

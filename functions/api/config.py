@@ -92,9 +92,10 @@ class Settings(BaseSettings):
 
     # --- heart rate zones (ADR-020) ---------------------------------------
     # The API reports minutes per zone but never the bpm boundaries, so the
-    # bands are derived (Karvonen) from resting HR and a max HR we are told.
-    # A measured max wins over an age formula; with neither, the chart
-    # draws a plain trace — the honest fallback, and production's setting.
+    # bands are derived (Karvonen) from resting HR and a max HR. That is the
+    # highest the watch has recorded (ADR-039, kept in Firestore by the sync)
+    # unless one of these says higher. A measured max wins over an age
+    # formula; with none of the three, the chart draws a plain trace.
     health_max_hr_bpm: int | None = None
     health_birth_year: int | None = None
 

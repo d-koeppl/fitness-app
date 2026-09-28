@@ -146,8 +146,9 @@ def _serialize_heart_rate(trace: SessionHeartRate | None, tracked: bool) -> dict
         # HR configured means no honest boundaries, which is different from
         # a session that happened to stay in one zone.
         payload["zones_note"] = (
-            "No zone boundaries — they need a configured maximum heart rate "
-            "(HEALTH_MAX_HR_BPM). The readings below are unaffected."
+            "No zone boundaries — they need a maximum heart rate, which is the "
+            "highest one recorded in any workout (or HEALTH_MAX_HR_BPM), and none "
+            "is recorded yet. The readings below are unaffected."
         )
 
     # Last, so the fields that say how to read it come before the ~3000

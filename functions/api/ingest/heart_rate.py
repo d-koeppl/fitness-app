@@ -27,6 +27,11 @@ before Google has finished backfilling one, stores a short trace that would
 otherwise stand forever. A trace is treated as settled only once it was
 fetched a few hours after the session ended; until then it is eligible to
 be replaced, which costs at most one extra fetch per session.
+
+Each stored trace also feeds the **recorded maximum heart rate** the zone
+boundaries are measured from (ADR-039): a workout that goes higher than any
+before it raises it, and the first run after the feature shipped seeds it
+from every trace already stored.
 """
 
 from __future__ import annotations
@@ -36,6 +41,7 @@ from datetime import date, datetime, timedelta
 
 import requests
 
+from api.analysis.heart_rate import sustained_peak
 from api.config import settings
 from api.integrations.google_health import (
     EXERCISE_DATA_TYPE,
@@ -89,6 +95,32 @@ def _needs_fetch(session: ExerciseSession, stored: ExerciseHeartRate | None, now
     return stored.fetched_at < settled_at <= now
 
 
+def _record_peak(store: FirestoreStore, row: ExerciseHeartRate) -> None:
+    peak = sustained_peak([(offset, bpm) for offset, bpm in row.samples])
+    if peak is not None and store.raise_recorded_max_hr(peak, row.session_start):
+        logger.info("New highest heart rate on record: %d bpm (session at %s)", peak, row.session_start)
+
+
+def _seed_recorded_max_hr(store: FirestoreStore) -> None:
+    """Take the maximum from every trace ever stored, once.
+
+    Runs whenever nothing is on record yet, which after the first trace
+    with readings is never again. Until then it reads every stored trace,
+    but those are few and all empty.
+    """
+    if store.recorded_max_hr() is not None:
+        return
+    peaks = [
+        (peak, row.session_start)
+        for row in store.hr_traces_since(date.min)
+        if (peak := sustained_peak([(offset, bpm) for offset, bpm in row.samples])) is not None
+    ]
+    if peaks:
+        peak, session_start = max(peaks, key=lambda p: p[0])
+        store.raise_recorded_max_hr(peak, session_start)
+        logger.info("Seeded the highest heart rate on record: %d bpm (session at %s)", peak, session_start)
+
+
 def sync_exercise_heart_rate(store: FirestoreStore, days_back: int | None = None) -> int:
     """Fetch and store traces for recent sessions that do not have one.
 
@@ -97,6 +129,8 @@ def sync_exercise_heart_rate(store: FirestoreStore, days_back: int | None = None
     days_back = settings.health_sync_days_back if days_back is None else days_back
     now = datetime.now(local_tz())
     since = now.date() - timedelta(days=days_back)
+
+    _seed_recorded_max_hr(store)
 
     sessions = _tracked_sessions(store, since)
     stored = {row.session_start: row for row in store.hr_traces_since(since)}
@@ -133,16 +167,16 @@ def sync_exercise_heart_rate(store: FirestoreStore, days_back: int | None = None
                 # trace that was just fetched.
                 logger.info("Time-in-zone unavailable for session at %s: %s", session.start_ts, exc)
 
-        store.put_hr_trace(
-            ExerciseHeartRate(
-                session_start=session.start_ts,
-                date=session.date,
-                session_end=session.end_ts,
-                samples=[[int((when - session.start_ts).total_seconds()), bpm] for when, bpm in samples],
-                zone_seconds=zone_seconds,
-                fetched_at=datetime.now(local_tz()),
-            )
+        row = ExerciseHeartRate(
+            session_start=session.start_ts,
+            date=session.date,
+            session_end=session.end_ts,
+            samples=[[int((when - session.start_ts).total_seconds()), bpm] for when, bpm in samples],
+            zone_seconds=zone_seconds,
+            fetched_at=datetime.now(local_tz()),
         )
+        store.put_hr_trace(row)
+        _record_peak(store, row)
         saved += 1
 
     logger.info("Stored heart rate traces for %d session(s)", saved)
