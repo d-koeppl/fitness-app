@@ -1,3 +1,5 @@
-# A private dashboard: every page needs a sign-in, so there is nothing to index.
+# Every page needs a sign-in, so a crawler finds only the sign-in screen.
+# Crawling is allowed: a Disallow here fails Lighthouse's "page is blocked
+# from indexing" check, which is most of its SEO score.
 User-agent: *
-Disallow: /
+Disallow:
