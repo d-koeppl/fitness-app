@@ -4,31 +4,31 @@ import 'package:fitness_api/fitness_api.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 MatchOut match({String homeAway = 'home', String? result = '4:3', int id = 1}) => MatchOut(
-  goals: 0,
-  homeAway: homeAway,
-  id: id,
-  matchDate: DateTime(2026, 8, 8),
-  minutesPlayed: 90,
-  oefbGameId: '1',
-  opponent: 'Treffling',
-  redCard: false,
-  result: result,
-  started: true,
-  yellowCard: false,
-);
+      goals: 0,
+      homeAway: homeAway,
+      id: id,
+      matchDate: DateTime(2026, 8, 8),
+      minutesPlayed: 90,
+      oefbGameId: '1',
+      opponent: 'Treffling',
+      redCard: false,
+      result: result,
+      started: true,
+      yellowCard: false,
+    );
 
 AiReportOut report({String summaryMd = 'Body text.', Map<String, Object> insights = const {}}) => AiReportOut(
-  createdAt: DateTime.utc(2026, 8, 19, 7),
-  id: 1,
-  insights: insights,
-  model: 'gemini-3-flash-preview',
-  periodEnd: null,
-  periodStart: null,
-  promptVersion: 'v1',
-  summaryMd: summaryMd,
-  tokensUsed: null,
-  trigger: 'wake',
-);
+      createdAt: DateTime.utc(2026, 8, 19, 7),
+      id: 1,
+      insights: insights,
+      model: 'gemini-3-flash-preview',
+      periodEnd: null,
+      periodStart: null,
+      promptVersion: 'v1',
+      summaryMd: summaryMd,
+      tokensUsed: null,
+      trigger: 'wake',
+    );
 
 ExerciseSessionOut exercise({
   String? exerciseType = 'RUNNING',
@@ -36,22 +36,23 @@ ExerciseSessionOut exercise({
   num? estimatedLoad,
   String source = 'tracked',
   String? title,
-}) => ExerciseSessionOut(
-  activeZoneMinutes: activeZoneMinutes,
-  averageHeartRate: 150,
-  date: DateTime(2026, 8, 20),
-  durationMinutes: 65,
-  endTs: DateTime.parse('2026-08-20T18:05:00+02:00'),
-  estimatedLoad: estimatedLoad,
-  exerciseType: exerciseType,
-  id: '2026-08-20#0',
-  metrics: const {},
-  refId: null,
-  skipped: false,
-  source_: source,
-  startTs: DateTime.parse('2026-08-20T17:00:00+02:00'),
-  title: title,
-);
+}) =>
+    ExerciseSessionOut(
+      activeZoneMinutes: activeZoneMinutes,
+      averageHeartRate: 150,
+      date: DateTime(2026, 8, 20),
+      durationMinutes: 65,
+      endTs: DateTime.parse('2026-08-20T18:05:00+02:00'),
+      estimatedLoad: estimatedLoad,
+      exerciseType: exerciseType,
+      id: '2026-08-20#0',
+      metrics: const {},
+      refId: null,
+      skipped: false,
+      source_: source,
+      startTs: DateTime.parse('2026-08-20T17:00:00+02:00'),
+      title: title,
+    );
 
 void main() {
   group('fmtSleep', () {
@@ -95,17 +96,13 @@ void main() {
     final saturday = MeasurementOut(value: 79.2, date: DateTime(2026, 8, 29));
 
     test("prefers today's own reading and does not call it carried", () {
-      expect(
-        currentReading(78.8, DateTime(2026, 8, 31), saturday),
-        Reading(value: 78.8, date: DateTime(2026, 8, 31), carried: false),
-      );
+      expect(currentReading(78.8, DateTime(2026, 8, 31), saturday),
+          Reading(value: 78.8, date: DateTime(2026, 8, 31), carried: false));
     });
 
     test('reaches back to the last reading on a day nothing was measured', () {
-      expect(
-        currentReading(null, DateTime(2026, 8, 31), saturday),
-        Reading(value: 79.2, date: DateTime(2026, 8, 29), carried: true),
-      );
+      expect(currentReading(null, DateTime(2026, 8, 31), saturday),
+          Reading(value: 79.2, date: DateTime(2026, 8, 29), carried: true));
     });
 
     test('is null only when the metric has never been recorded', () {
@@ -200,8 +197,14 @@ void main() {
   });
 
   group('fmtEventWhen', () {
-    CalendarEventOut event({bool allDay = false, DateTime? start}) =>
-        CalendarEventOut(allDay: allDay, endTs: null, id: '1', location: null, startTs: start, title: 'Training');
+    CalendarEventOut event({bool allDay = false, DateTime? start}) => CalendarEventOut(
+          allDay: allDay,
+          endTs: null,
+          id: '1',
+          location: null,
+          startTs: start,
+          title: 'Training',
+        );
     final start = DateTime.parse('2026-08-20T19:00:00+02:00');
 
     test('omits the time for an all-day event', () {
@@ -266,10 +269,8 @@ void main() {
     test('reads the units the real payload uses', () {
       expect(fmtSessionMetric('caloriesKcal', 874), (label: 'Calories', value: '874 kcal'));
       expect(fmtSessionMetric('distanceMillimeters', 7127000), (label: 'Distance', value: '7.13 km'));
-      expect(fmtSessionMetric('averagePaceSecondsPerMeter', 0.7286734611989407), (
-        label: 'Average pace',
-        value: '12:09 min/km',
-      ));
+      expect(fmtSessionMetric('averagePaceSecondsPerMeter', 0.7286734611989407),
+          (label: 'Average pace', value: '12:09 min/km'));
     });
 
     test('shows a bare number for a name carrying no unit', () {
@@ -289,7 +290,8 @@ void main() {
     });
 
     test('keeps a plain unit suffix as a unit', () {
-      expect(fmtSessionMetric('averageHeartRateBeatsPerMinute', 137), (label: 'Average heart rate', value: '137 bpm'));
+      expect(fmtSessionMetric('averageHeartRateBeatsPerMinute', 137),
+          (label: 'Average heart rate', value: '137 bpm'));
     });
   });
 
@@ -313,10 +315,8 @@ void main() {
     });
 
     test("reads an untracked session's estimate, and says that it is one", () {
-      expect(sessionLoad(exercise(source: 'match', activeZoneMinutes: null, estimatedLoad: 224.1)), (
-        azm: 224.1,
-        estimated: true,
-      ));
+      expect(sessionLoad(exercise(source: 'match', activeZoneMinutes: null, estimatedLoad: 224.1)),
+          (azm: 224.1, estimated: true));
     });
 
     test('never calls a measured zero an estimate', () {
@@ -349,10 +349,8 @@ void main() {
   group('fmtDrinkVolume', () {
     test('says what the count comes to', () => expect(fmtDrinkVolume(3, 0.5), '1.5 L'));
     test('does not write a round total as 2.0 L', () => expect(fmtDrinkVolume(4, 0.5), '2 L'));
-    test(
-      'reads the size off the server rather than assuming a half litre',
-      () => expect(fmtDrinkVolume(2, 0.33), '0.7 L'),
-    );
+    test('reads the size off the server rather than assuming a half litre',
+        () => expect(fmtDrinkVolume(2, 0.33), '0.7 L'));
     test('handles an empty counter', () => expect(fmtDrinkVolume(0, 0.5), '0 L'));
   });
 

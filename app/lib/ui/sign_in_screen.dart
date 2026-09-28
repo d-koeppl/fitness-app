@@ -23,12 +23,8 @@ class _SignInScreenState extends State<SignInScreen> {
       await widget.signIn();
     } on FirebaseAuthException catch (e) {
       // Closing the popup or the browser tab is not an error worth showing.
-      final cancelled = const {
-        'popup-closed-by-user',
-        'cancelled-popup-request',
-        'web-context-canceled',
-        'canceled',
-      }.contains(e.code);
+      final cancelled = const {'popup-closed-by-user', 'cancelled-popup-request', 'web-context-canceled',
+        'canceled'}.contains(e.code);
       if (mounted && !cancelled) setState(() => _error = e.message ?? e.code);
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
@@ -60,11 +56,7 @@ class _SignInScreenState extends State<SignInScreen> {
               ),
               if (_error != null) ...[
                 const SizedBox(height: 16),
-                Text(
-                  _error!,
-                  style: TextStyle(color: theme.colorScheme.error),
-                  textAlign: TextAlign.center,
-                ),
+                Text(_error!, style: TextStyle(color: theme.colorScheme.error), textAlign: TextAlign.center),
               ],
             ],
           ),

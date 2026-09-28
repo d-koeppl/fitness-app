@@ -85,7 +85,12 @@ class _CoachChartViewState extends State<CoachChartView> {
             sections: [
               for (final (i, v) in values.indexed)
                 if (v != null && v > 0)
-                  PieChartSectionData(value: v, color: colors[i % colors.length], radius: 44, showTitle: false),
+                  PieChartSectionData(
+                    value: v,
+                    color: colors[i % colors.length],
+                    radius: 44,
+                    showTitle: false,
+                  ),
             ],
           ),
         ),
@@ -133,7 +138,9 @@ class _CoachChartViewState extends State<CoachChartView> {
         for (final (i, s) in chart.series.indexed)
           _LegendEntry(
             color: colors[i % colors.length],
-            text: at == null ? s.name : '${s.name}: ${s.values[at] == null ? '—' : '${fmt(s.values[at]!)}$unit'}',
+            text: at == null
+                ? s.name
+                : '${s.name}: ${s.values[at] == null ? '—' : '${fmt(s.values[at]!)}$unit'}',
           ),
       ];
     }

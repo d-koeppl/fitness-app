@@ -3,8 +3,7 @@ import 'package:fitness/domain/key_metrics.dart';
 import 'package:fitness_api/fitness_api.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-DayPointOut day(num fitness, num fatigue) =>
-    DayPointOut(date: '2026-08-22', load: 0, fitness: fitness, fatigue: fatigue);
+DayPointOut day(num fitness, num fatigue) => DayPointOut(date: '2026-08-22', load: 0, fitness: fitness, fatigue: fatigue);
 
 LoadMetricDef byKey(MetricKey key) => loadMetrics.firstWhere((m) => m.key == key);
 

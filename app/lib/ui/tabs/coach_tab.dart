@@ -85,9 +85,7 @@ class _CoachTabState extends ConsumerState<CoachTab> {
         const SizedBox(height: 8),
         CoachScopeBar(budgetDetail: budget?.detail),
         const SizedBox(height: 8),
-        Expanded(
-          child: _Transcript(coach: coach, scroll: _scroll),
-        ),
+        Expanded(child: _Transcript(coach: coach, scroll: _scroll)),
         if (coach.error != null) ...[
           const SizedBox(height: 8),
           Container(
@@ -97,7 +95,13 @@ class _CoachTabState extends ConsumerState<CoachTab> {
           ),
         ],
         const SizedBox(height: 8),
-        _Composer(controller: _input, focus: _focus, exhausted: coach.exhausted, sending: coach.sending, onSend: _send),
+        _Composer(
+          controller: _input,
+          focus: _focus,
+          exhausted: coach.exhausted,
+          sending: coach.sending,
+          onSend: _send,
+        ),
       ],
     );
   }
