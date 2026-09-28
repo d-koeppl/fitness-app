@@ -331,6 +331,7 @@ class _FeaturedCard extends StatelessWidget {
     final metric = card.metric;
     final newest = card.values.lastOrNull;
     final normal = card.normal;
+    final better = betterFor(metric.key);
     final status = normal != null && newest != null ? bandStatus(normal, newest) : null;
 
     Widget pill(String text, Color background, Color foreground, {Color? dot}) => Container(
@@ -376,15 +377,15 @@ class _FeaturedCard extends StatelessWidget {
                   ),
                   pill(card.chip, p.surfaceContainerHigh, p.onSurfaceVariant),
                   if (status != null)
-                    status == BandStatus.within
+                    verdictFor(status, better) != Verdict.worse
                         ? pill(
-                            bandStatusLabel(status),
+                            bandStatusLabel(status, better),
                             p.success.container,
                             p.success.onContainer,
                             dot: p.success.color,
                           )
                         : pill(
-                            bandStatusLabel(status),
+                            bandStatusLabel(status, better),
                             p.warning.container,
                             p.warning.onContainer,
                             dot: p.warning.color,
@@ -401,6 +402,7 @@ class _FeaturedCard extends StatelessWidget {
                 minStep: metric.minStep,
                 domain: metric.domain,
                 normal: normal,
+                better: better,
                 semanticLabel: '${card.title}, last $range days',
               ),
             ],

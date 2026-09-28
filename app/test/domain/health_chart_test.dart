@@ -49,6 +49,27 @@ void main() {
     expect(bandStatus(range, 56.1), BandStatus.above);
   });
 
+  group('verdictFor', () {
+    test('reads a resting heart rate below normal as good and above as worse', () {
+      final better = betterFor(MetricKey.restingHr);
+      expect(verdictFor(BandStatus.below, better), Verdict.better);
+      expect(verdictFor(BandStatus.above, better), Verdict.worse);
+      expect(verdictFor(BandStatus.within, better), Verdict.usual);
+    });
+
+    test('reads HRV the other way round', () {
+      final better = betterFor(MetricKey.hrvMs);
+      expect(verdictFor(BandStatus.above, better), Verdict.better);
+      expect(verdictFor(BandStatus.below, better), Verdict.worse);
+    });
+
+    test('says the side and the reading in words', () {
+      expect(bandStatusLabel(BandStatus.below, Better.lower), 'Below your normal range · good');
+      expect(bandStatusLabel(BandStatus.below, Better.higher), 'Below your normal range · worse');
+      expect(bandStatusLabel(BandStatus.within, Better.higher), 'Within your normal range');
+    });
+  });
+
   group('rangePosition', () {
     test('places the value and the mean between the low and the high', () {
       final pos = rangePosition([70, 80, 90, null], 80)!;

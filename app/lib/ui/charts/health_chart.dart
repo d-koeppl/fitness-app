@@ -31,6 +31,7 @@ class HealthChart extends StatelessWidget {
     required this.minStep,
     this.domain,
     this.normal,
+    this.better,
     required this.semanticLabel,
   });
 
@@ -48,6 +49,9 @@ class HealthChart extends StatelessWidget {
 
   /// The band [HeroStyle.band] draws; without one it draws a plain line.
   final NormalRange? normal;
+
+  /// Which side of [normal] is good; days on the other side are warnings.
+  final Better? better;
   final String semanticLabel;
 
   @override
@@ -71,6 +75,7 @@ class HealthChart extends StatelessWidget {
               minStep: minStep,
               domain: domain,
               normal: normal,
+              better: better,
               palette: p,
               textStyle: TypeScale.labelSmall.copyWith(fontFeatures: TypeScale.tabular),
             ),
@@ -91,6 +96,7 @@ class _HealthChartPainter extends CustomPainter {
     required this.minStep,
     required this.domain,
     required this.normal,
+    required this.better,
     required this.palette,
     required this.textStyle,
   });
@@ -103,6 +109,7 @@ class _HealthChartPainter extends CustomPainter {
   final double minStep;
   final (double, double)? domain;
   final NormalRange? normal;
+  final Better? better;
   final Palette palette;
   final TextStyle textStyle;
 
@@ -273,25 +280,27 @@ class _HealthChartPainter extends CustomPainter {
       canvas.drawPath(path, line);
     }
 
-    // Days outside the band are what this chart is for; past a month the
-    // days inside are left to the line.
+    // Days outside the band are what this chart is for, on the good side
+    // as much as the bad; past a month the days inside are left to the line.
+    Verdict verdict(num v) => band == null ? Verdict.usual : verdictFor(bandStatus(band, v), better);
     final n = values.length;
     for (final (i, v) in values.indexed) {
       if (v == null || i == n - 1) continue;
-      final out = band != null && bandStatus(band, v) != BandStatus.within;
-      if (out) {
-        canvas.drawCircle(Offset(x(i), y(v)), 4.5, Paint()..color = warn);
-      } else if (n <= 31) {
-        canvas.drawCircle(Offset(x(i), y(v)), 3, Paint()..color = color);
+      final at = Offset(x(i), y(v));
+      switch (verdict(v)) {
+        case Verdict.worse:
+          canvas.drawCircle(at, 4.5, Paint()..color = warn);
+        case Verdict.better:
+          // As big as a warning, ringed so it reads apart from the band's
+          // own dots in the same colour.
+          canvas.drawCircle(at, 6, Paint()..color = palette.surface);
+          canvas.drawCircle(at, 4.5, Paint()..color = color);
+        case Verdict.usual:
+          if (n <= 31) canvas.drawCircle(at, 3, Paint()..color = color);
       }
     }
     final newest = values.last;
-    _newest(
-      canvas,
-      x,
-      y,
-      newest != null && band != null && bandStatus(band, newest) != BandStatus.within ? warn : color,
-    );
+    _newest(canvas, x, y, newest != null && verdict(newest) == Verdict.worse ? warn : color);
   }
 
   /// The newest reading: a ringed dot in a soft halo.
@@ -374,6 +383,7 @@ class _HealthChartPainter extends CustomPainter {
       old.labels != labels ||
       old.color != color ||
       old.normal != normal ||
+      old.better != better ||
       old.palette != palette;
 }
 

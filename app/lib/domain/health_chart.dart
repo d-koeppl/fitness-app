@@ -67,11 +67,39 @@ BandStatus bandStatus(NormalRange range, num value) {
   return BandStatus.within;
 }
 
-String bandStatusLabel(BandStatus status) => switch (status) {
-  BandStatus.below => 'Below your normal range',
-  BandStatus.within => 'Within your normal range',
-  BandStatus.above => 'Above your normal range',
+/// Which way is good for a metric drawn against its normal: a resting heart
+/// rate below it is a rested heart, an HRV above it a recovered one.
+enum Better { higher, lower }
+
+Better? betterFor(MetricKey key) => switch (key) {
+  MetricKey.restingHr => Better.lower,
+  MetricKey.hrvMs => Better.higher,
+  _ => null,
 };
+
+/// What leaving the normal range means: only the wrong side is a warning.
+enum Verdict { usual, better, worse }
+
+Verdict verdictFor(BandStatus status, Better? better) => switch (status) {
+  BandStatus.within => Verdict.usual,
+  BandStatus.above => better == Better.higher ? Verdict.better : Verdict.worse,
+  BandStatus.below => better == Better.lower ? Verdict.better : Verdict.worse,
+};
+
+/// Says which side as well as how it reads, so the colour is never the only
+/// thing carrying it.
+String bandStatusLabel(BandStatus status, Better? better) {
+  final side = switch (status) {
+    BandStatus.below => 'Below your normal range',
+    BandStatus.within => 'Within your normal range',
+    BandStatus.above => 'Above your normal range',
+  };
+  return switch (verdictFor(status, better)) {
+    Verdict.usual => side,
+    Verdict.better => '$side · good',
+    Verdict.worse => '$side · worse',
+  };
+}
 
 /// Where the current value sits between the range's low and high, and where
 /// its average does, both 0–1 along the track.
