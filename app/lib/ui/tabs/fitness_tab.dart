@@ -1,5 +1,5 @@
-// Training status, the sessions behind it, the week ahead and the last few
-// matches, one at a time — ported from fitness-dashboard's
+// Training status, the sessions behind it, the week ahead and every
+// match, one at a time — ported from fitness-dashboard's
 // web/components/tabs/FitnessTab.tsx. The session sheet and the load
 // history sheet arrive in phase 5.
 
@@ -329,7 +329,7 @@ class _Matches extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(dashboardProvider);
     final p = Palette.of(context);
-    final matches = state.data.matches.take(3).toList();
+    final matches = state.data.matches;
     final error = state.errors.matches;
 
     final Widget body;
