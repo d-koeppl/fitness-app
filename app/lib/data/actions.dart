@@ -238,8 +238,6 @@ class HealthHistory extends AsyncNotifier<List<DailyHealthOut>> {
 /// parameters in raw, and a session id is "2026-09-24#0": unescaped, the
 /// "#" starts a URL fragment and the request goes to the day instead.
 final sessionHeartRateProvider = FutureProvider.autoDispose.family<SessionHeartRateOut, String>(
-  (ref, sessionId) async => (await ref
-      .read(apiProvider)
-      .getHealthApi()
-      .exerciseHeartRate(sessionId: Uri.encodeComponent(sessionId))).data!,
+  (ref, sessionId) async =>
+      (await ref.read(apiProvider).getHealthApi().exerciseHeartRate(sessionId: Uri.encodeComponent(sessionId))).data!,
 );

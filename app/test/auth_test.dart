@@ -42,15 +42,17 @@ void main() {
   group('AuthGate', () {
     testWidgets('signs in, then out, following the auth state', (tester) async {
       final auth = FakeAuth();
-      await tester.pumpWidget(MaterialApp(
-        home: AuthGate(
-          auth: auth,
-          signedOut: (_) => SignInScreen(signIn: auth.signInWithGoogle),
-          signedIn: (_) => Scaffold(
-            body: TextButton(onPressed: auth.signOut, child: const Text('Signed in')),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AuthGate(
+            auth: auth,
+            signedOut: (_) => SignInScreen(signIn: auth.signInWithGoogle),
+            signedIn: (_) => Scaffold(
+              body: TextButton(onPressed: auth.signOut, child: const Text('Signed in')),
+            ),
           ),
         ),
-      ));
+      );
       await tester.pumpAndSettle();
       expect(find.text('Sign in with Google'), findsOneWidget);
 
@@ -69,10 +71,14 @@ void main() {
       final seen = Completer<RequestOptions>();
       final dio = Dio(BaseOptions(baseUrl: 'https://api.test'))
         ..interceptors.add(AuthInterceptor(idToken))
-        ..interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
-          seen.complete(options);
-          handler.reject(DioException(requestOptions: options)); // never hit the network
-        }));
+        ..interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              seen.complete(options);
+              handler.reject(DioException(requestOptions: options)); // never hit the network
+            },
+          ),
+        );
       await dio.get<void>('/me').catchError((_) => Response<void>(requestOptions: RequestOptions()));
       return seen.future;
     }

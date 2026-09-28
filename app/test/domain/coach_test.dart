@@ -70,7 +70,10 @@ void main() {
 
   group('conversationLabel', () {
     test('names an unsaved chat', () => expect(conversationLabel(null), 'New chat'));
-    test('uses the stored title', () => expect(conversationLabel(conv(1, 'taper before Saturday')), 'taper before Saturday'));
+    test(
+      'uses the stored title',
+      () => expect(conversationLabel(conv(1, 'taper before Saturday')), 'taper before Saturday'),
+    );
     test('falls back when the title is blank', () => expect(conversationLabel(conv(1, '   ')), 'New chat'));
   });
 

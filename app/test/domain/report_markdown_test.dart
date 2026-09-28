@@ -77,18 +77,21 @@ void main() {
     });
 
     test('joins the lines of a wrapped paragraph', () {
-      expect(parseReportBlocks('Your HRV is up\nand your resting HR is down.'),
-          [const ParagraphBlock('Your HRV is up and your resting HR is down.')]);
+      expect(parseReportBlocks('Your HRV is up\nand your resting HR is down.'), [
+        const ParagraphBlock('Your HRV is up and your resting HR is down.'),
+      ]);
     });
 
     test("hangs a wrapped bullet's continuation on the bullet above it", () {
-      expect(parseReportBlocks('- Walk today,\n  not a session.\n- Sleep 7.5 hours.'),
-          [const ListBlock(['Walk today, not a session.', 'Sleep 7.5 hours.'])]);
+      expect(parseReportBlocks('- Walk today,\n  not a session.\n- Sleep 7.5 hours.'), [
+        const ListBlock(['Walk today, not a session.', 'Sleep 7.5 hours.']),
+      ]);
     });
 
     test('does not read a bold run at the start of a line as a bullet', () {
-      expect(parseReportBlocks('**Form:** -15.6, in the productive zone.'),
-          [const ParagraphBlock('**Form:** -15.6, in the productive zone.')]);
+      expect(parseReportBlocks('**Form:** -15.6, in the productive zone.'), [
+        const ParagraphBlock('**Form:** -15.6, in the productive zone.'),
+      ]);
     });
 
     test('trims a closing run of hashes off a heading', () {
@@ -100,8 +103,10 @@ void main() {
     });
 
     test('drops a thematic break instead of showing it as text', () {
-      expect(parseReportBlocks('Above the line.\n\n---\n\nBelow the line.'),
-          [const ParagraphBlock('Above the line.'), const ParagraphBlock('Below the line.')]);
+      expect(parseReportBlocks('Above the line.\n\n---\n\nBelow the line.'), [
+        const ParagraphBlock('Above the line.'),
+        const ParagraphBlock('Below the line.'),
+      ]);
     });
 
     test('reads a markdown table into headers and rows', () {
@@ -111,10 +116,13 @@ void main() {
         ),
         [
           const ParagraphBlock('Before.'),
-          const TableBlock(['Week', 'Fitness', 'Form'], [
-            ['Aug 25', '38.3', '-12'],
-            ['Sep 1', '46.0', '-4'],
-          ]),
+          const TableBlock(
+            ['Week', 'Fitness', 'Form'],
+            [
+              ['Aug 25', '38.3', '-12'],
+              ['Sep 1', '46.0', '-4'],
+            ],
+          ),
           const ParagraphBlock('After.'),
         ],
       );
@@ -122,14 +130,19 @@ void main() {
 
     test('tolerates alignment colons and no outer pipes in the separator row', () {
       expect(parseReportBlocks('Week | Fitness\n:---|---:\nAug 25 | 38.3'), [
-        const TableBlock(['Week', 'Fitness'], [
-          ['Aug 25', '38.3'],
-        ]),
+        const TableBlock(
+          ['Week', 'Fitness'],
+          [
+            ['Aug 25', '38.3'],
+          ],
+        ),
       ]);
     });
 
     test('does not mistake a stray pipe in a sentence for a table', () {
-      expect(parseReportBlocks('Rest | recover, in that order.'), [const ParagraphBlock('Rest | recover, in that order.')]);
+      expect(parseReportBlocks('Rest | recover, in that order.'), [
+        const ParagraphBlock('Rest | recover, in that order.'),
+      ]);
     });
 
     test('pulls a fenced mermaid block out as its own block', () {
@@ -146,13 +159,15 @@ void main() {
     });
 
     test('does not let table detection reach inside a fence', () {
-      expect(parseReportBlocks('```mermaid\npie title \$ spent\n"A" : 10\n```'),
-          [const MermaidBlock('pie title \$ spent\n"A" : 10')]);
+      expect(parseReportBlocks('```mermaid\npie title \$ spent\n"A" : 10\n```'), [
+        const MermaidBlock('pie title \$ spent\n"A" : 10'),
+      ]);
     });
 
     test('keeps a math span intact as paragraph text', () {
-      expect(parseReportBlocks(r'Fitness climbed $0 \rightarrow 13.9$ today.'),
-          [const ParagraphBlock(r'Fitness climbed $0 \rightarrow 13.9$ today.')]);
+      expect(parseReportBlocks(r'Fitness climbed $0 \rightarrow 13.9$ today.'), [
+        const ParagraphBlock(r'Fitness climbed $0 \rightarrow 13.9$ today.'),
+      ]);
     });
   });
 }

@@ -61,7 +61,9 @@ Map<String, Object?> turn(String question, String reply, {int conversation = 7})
   'usage': usageJson(remaining: 36),
 };
 
-final noWaiting = [coachRetryDelaysProvider.overrideWithValue(const [Duration.zero, Duration.zero, Duration.zero])];
+final noWaiting = [
+  coachRetryDelaysProvider.overrideWithValue(const [Duration.zero, Duration.zero, Duration.zero]),
+];
 
 Future<void> openCoach(WidgetTester tester) async {
   await tester.tap(find.text('Coach'));
@@ -150,7 +152,8 @@ void main() {
     await tester.pumpAndSettle();
 
     final ids = {
-      for (final r in sent.where((r) => r.path == '/coach/chat')) (r.body! as Map<String, Object?>)['client_message_id'],
+      for (final r in sent.where((r) => r.path == '/coach/chat'))
+        (r.body! as Map<String, Object?>)['client_message_id'],
     };
     expect(calls, 3);
     expect(ids, hasLength(1));
@@ -191,9 +194,7 @@ void main() {
         r'Form is $F - A$.';
     await pumpDashboard(
       tester,
-      fakeApi(
-        coachFixtures(messages: [message(1, 'user', 'My week?'), message(2, 'assistant', reply)]),
-      ),
+      fakeApi(coachFixtures(messages: [message(1, 'user', 'My week?'), message(2, 'assistant', reply)])),
     );
     await openCoach(tester);
 

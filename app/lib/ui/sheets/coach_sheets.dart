@@ -68,9 +68,7 @@ class _CoachConversationsSheetState extends ConsumerState<CoachConversationsShee
                                   Text(
                                     fmtDate(conv.updatedAt),
                                     style: TypeScale.labelSmall.copyWith(
-                                      color: conv.id == coach.activeId
-                                          ? p.secondary.onContainer
-                                          : p.onSurfaceVariant,
+                                      color: conv.id == coach.activeId ? p.secondary.onContainer : p.onSurfaceVariant,
                                       fontFeatures: TypeScale.tabular,
                                     ),
                                   ),

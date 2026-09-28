@@ -8,10 +8,13 @@
 // (ADR-026), or a dashboard left open would hit Google every five minutes.
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
 import 'package:fitness_api/fitness_api.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../domain/health_chart.dart';
 
 const autoRefresh = Duration(minutes: 5);
 
@@ -19,7 +22,8 @@ const autoRefresh = Duration(minutes: 5);
 /// carries the Firebase ID token.
 final apiProvider = Provider<FitnessApi>((ref) => throw UnimplementedError('apiProvider is set in main.dart'));
 
-/// How many days of health history the Health tab averages over.
+/// How many days of health history the Health tab averages over. The rows
+/// loaded can reach further back (see [baselineDays]); slice with [inRange].
 final healthRangeProvider = NotifierProvider<HealthRange, int>(HealthRange.new);
 
 class HealthRange extends Notifier<int> {
@@ -63,6 +67,9 @@ class DashboardData {
   final DrinkCounterOut? drinks;
   final bool calendarConnected;
   final bool healthConnected;
+
+  /// The last [days] daily rows.
+  List<DailyHealthOut> inRange(int days) => daily.length > days ? daily.sublist(daily.length - days) : daily;
 
   DailyHealthOut? get latest => daily.isEmpty ? null : daily.last;
   DailyHealthOut? get previous => daily.length < 2 ? null : daily[daily.length - 2];
@@ -223,7 +230,9 @@ class DashboardController extends Notifier<DashboardState> {
       _settle(api.getMatchesApi().missingYesterday()),
       _settle(api.getCalendarApi().listUpcomingEvents()),
       _settle(api.getOauthApi().status()),
-      _settle(health.listDailyHealth(limit: range)),
+      // At least a month, however short the range: the heart charts
+      // measure a day against the last month's normal.
+      _settle(health.listDailyHealth(limit: math.max(range, baselineDays))),
     );
     final rest = (
       _settle(health.latestHealthMeasurements()),

@@ -36,8 +36,7 @@ List<ConversationOut> promote(List<ConversationOut> list, ConversationOut conv) 
   ...list.where((other) => other.id != conv.id),
 ];
 
-List<ConversationOut> removeById(List<ConversationOut> list, int id) =>
-    list.where((conv) => conv.id != id).toList();
+List<ConversationOut> removeById(List<ConversationOut> list, int id) => list.where((conv) => conv.id != id).toList();
 
 /// What the picker button shows. A chat with no conversation behind it yet
 /// is the one you are about to start: nothing has been said in it, so it
