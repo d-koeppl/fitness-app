@@ -1,7 +1,8 @@
-// The Health tab's featured chart in its three styles (HeroStyle), and the
-// range track each list row carries. Painted directly rather than with
-// fl_chart: they are pictures of a series, not instruments — the detail
-// sheet's MetricChart is the one with a crosshair.
+// One metric's chart in its three styles (HeroStyle) — the Health tab's
+// featured chart and, with a crosshair, the detail sheet's — and the range
+// track each list row carries. Painted directly rather than with fl_chart,
+// which cannot draw the band or the smoothed wash. Charts of several series
+// (training load, the coach's) stay on MetricChart.
 //
 // A gap in the data breaks the line, as in MetricChart: the watch was off,
 // and drawing across it would invent readings.
@@ -32,6 +33,8 @@ class HealthChart extends StatelessWidget {
     this.domain,
     this.normal,
     this.better,
+    this.active,
+    this.onActiveChange,
     required this.semanticLabel,
   });
 
@@ -52,6 +55,11 @@ class HealthChart extends StatelessWidget {
 
   /// Which side of [normal] is good; days on the other side are warnings.
   final Better? better;
+
+  /// The value under the crosshair. Without [onActiveChange] the chart is a
+  /// picture and has none.
+  final int? active;
+  final ValueChanged<int?>? onActiveChange;
   final String semanticLabel;
 
   @override
@@ -63,8 +71,10 @@ class HealthChart extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
-          final height = (width * 0.34).clamp(170.0, 250.0);
-          return CustomPaint(
+          // Taller for its width on a phone or in a sheet, where a flat plot
+          // would squash the shape into a few pixels.
+          final height = (width * (width < 600 ? 0.5 : 0.34)).clamp(170.0, 250.0);
+          final chart = CustomPaint(
             size: Size(width, height),
             painter: _HealthChartPainter(
               style: style,
@@ -76,8 +86,30 @@ class HealthChart extends StatelessWidget {
               domain: domain,
               normal: normal,
               better: better,
+              active: active,
               palette: p,
               textStyle: TypeScale.labelSmall.copyWith(fontFeatures: TypeScale.tabular),
+            ),
+          );
+          final onActive = onActiveChange;
+          if (onActive == null || values.isEmpty) return chart;
+
+          // The pointer only has to be over a value's slot, not on its mark.
+          final slot = (width - _gutter) / values.length;
+          int indexAt(Offset position) => (position.dx / slot).floor().clamp(0, values.length - 1);
+          return MouseRegion(
+            onHover: (event) => onActive(indexAt(event.localPosition)),
+            onExit: (_) => onActive(null),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTapDown: (details) {
+                final i = indexAt(details.localPosition);
+                onActive(i == active ? null : i);
+              },
+              // Horizontal only, so the sheet still scrolls vertically.
+              onHorizontalDragStart: (details) => onActive(indexAt(details.localPosition)),
+              onHorizontalDragUpdate: (details) => onActive(indexAt(details.localPosition)),
+              child: chart,
             ),
           );
         },
@@ -97,6 +129,7 @@ class _HealthChartPainter extends CustomPainter {
     required this.domain,
     required this.normal,
     required this.better,
+    required this.active,
     required this.palette,
     required this.textStyle,
   });
@@ -110,8 +143,13 @@ class _HealthChartPainter extends CustomPainter {
   final (double, double)? domain;
   final NormalRange? normal;
   final Better? better;
+  final int? active;
   final Palette palette;
   final TextStyle textStyle;
+
+  /// The value the chart points at: the one under the crosshair, else the
+  /// newest reading.
+  int get _focus => active ?? values.lastIndexWhere((v) => v != null);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -119,6 +157,9 @@ class _HealthChartPainter extends CustomPainter {
     if (n == 0) return;
     final bars = style == HeroStyle.bars;
     final band = style == HeroStyle.band ? normal : null;
+    // A heart metric with no normal yet (too few readings, or averaged
+    // weeks the daily band does not describe) reads as a plain level.
+    final drawn = style == HeroStyle.band && band == null ? HeroStyle.area : style;
     final nums = values.whereType<num>().toList();
     final scale = niceScale(
       [
@@ -131,7 +172,9 @@ class _HealthChartPainter extends CustomPainter {
       targetTicks: domain != null ? 3 : 4,
     );
 
-    final plot = Rect.fromLTRB(0, _padTop, size.width - _gutter, size.height - _xBand);
+    // Headroom for the values written over a week of bars.
+    final labelled = bars && n <= 7;
+    final plot = Rect.fromLTRB(0, _padTop + (labelled ? 16 : 0), size.width - _gutter, size.height - _xBand);
     double y(num v) => plot.bottom - (v - scale.lo) / (scale.hi - scale.lo) * plot.height;
     // Bars sit in slots; points sit at the slot centres, so a week of either
     // lines up with its labels the same way.
@@ -148,10 +191,22 @@ class _HealthChartPainter extends CustomPainter {
       _text(canvas, formatTick(t), Offset(size.width, ty), palette.onSurfaceVariant, align: _Align.rightMiddle);
     }
 
-    // Dates under the plot; the newest one stands out.
+    // The crosshair: readers aim at a date, not at a 2px line.
+    if (active != null) {
+      canvas.drawLine(
+        Offset(x(active!), plot.top),
+        Offset(x(active!), plot.bottom),
+        Paint()
+          ..color = palette.outline
+          ..strokeWidth = 1,
+      );
+    }
+
+    // Dates under the plot; the one pointed at stands out.
+    final focusLabel = active ?? n - 1;
     for (final (i, label) in labels.indexed) {
       if (label == null) continue;
-      final last = i == n - 1;
+      final last = i == focusLabel;
       _text(
         canvas,
         label,
@@ -165,7 +220,14 @@ class _HealthChartPainter extends CustomPainter {
     if (nums.isEmpty) return;
     final mean = nums.reduce((a, b) => a + b) / nums.length;
 
-    switch (style) {
+    // The range's average, dashed and behind the data, so it reads as a
+    // reference and not as data; its tag goes on top so nothing hides it.
+    final my = band == null ? y(mean) : null;
+    if (my != null) {
+      _dashed(canvas, Offset(plot.left, my), Offset(plot.right, my), palette.onSurfaceVariant.withValues(alpha: 0.6));
+    }
+
+    switch (drawn) {
       case HeroStyle.bars:
         _paintBars(canvas, plot, slot, x, y);
       case HeroStyle.area:
@@ -174,16 +236,14 @@ class _HealthChartPainter extends CustomPainter {
         _paintBand(canvas, plot, x, y, band);
     }
 
-    // The range's average, dashed, so it reads as a reference and not data.
-    if (band == null) {
-      final my = y(mean);
-      _dashed(canvas, Offset(plot.left, my), Offset(plot.right, my), palette.onSurfaceVariant.withValues(alpha: 0.6));
+    if (my != null) {
+      // Under the line beside bars, where it cannot land on a bar's value.
       _text(
         canvas,
         'avg',
-        Offset(plot.left + 4, my),
+        Offset(plot.left + 4, bars ? my + 4 : my),
         palette.onSurfaceVariant,
-        align: _Align.leftMiddle,
+        align: bars ? _Align.leftTop : _Align.leftMiddle,
         background: palette.surfaceContainerHigh,
       );
     }
@@ -192,9 +252,10 @@ class _HealthChartPainter extends CustomPainter {
   void _paintBars(Canvas canvas, Rect plot, double slot, double Function(int) x, double Function(num) y) {
     final width = math.min(slot * 0.62, 44.0);
     final n = values.length;
+    final focus = _focus;
     for (final (i, v) in values.indexed) {
       if (v == null) continue;
-      final last = i == n - 1;
+      final last = i == focus;
       final top = math.min(y(v), plot.bottom - width / 2);
       final rect = RRect.fromRectAndRadius(
         Rect.fromLTRB(x(i) - width / 2, top, x(i) + width / 2, plot.bottom),
@@ -210,6 +271,7 @@ class _HealthChartPainter extends CustomPainter {
           last ? palette.onSurface : palette.onSurfaceVariant,
           align: _Align.centreBottom,
           bold: last,
+          background: palette.surface,
         );
       }
     }
@@ -241,7 +303,7 @@ class _HealthChartPainter extends CustomPainter {
       canvas.drawPath(area, wash);
       canvas.drawPath(line, stroke);
     }
-    _newest(canvas, x, y, color);
+    _pointed(canvas, x, y, color);
   }
 
   void _paintBand(Canvas canvas, Rect plot, double Function(int) x, double Function(num) y, NormalRange? band) {
@@ -262,6 +324,7 @@ class _HealthChartPainter extends CustomPainter {
         color,
         align: _Align.leftBottom,
         bold: true,
+        background: palette.surface.withValues(alpha: 0.85),
       );
     }
 
@@ -285,7 +348,7 @@ class _HealthChartPainter extends CustomPainter {
     Verdict verdict(num v) => band == null ? Verdict.usual : verdictFor(bandStatus(band, v), better);
     final n = values.length;
     for (final (i, v) in values.indexed) {
-      if (v == null || i == n - 1) continue;
+      if (v == null || i == _focus) continue;
       final at = Offset(x(i), y(v));
       switch (verdict(v)) {
         case Verdict.worse:
@@ -299,15 +362,16 @@ class _HealthChartPainter extends CustomPainter {
           if (n <= 31) canvas.drawCircle(at, 3, Paint()..color = color);
       }
     }
-    final newest = values.last;
-    _newest(canvas, x, y, newest != null && verdict(newest) == Verdict.worse ? warn : color);
+    final focus = _focus < 0 ? null : values[_focus];
+    _pointed(canvas, x, y, focus != null && verdict(focus) == Verdict.worse ? warn : color);
   }
 
-  /// The newest reading: a ringed dot in a soft halo.
-  void _newest(Canvas canvas, double Function(int) x, double Function(num) y, Color c) {
-    final v = values.last;
+  /// The value pointed at: a ringed dot in a soft halo.
+  void _pointed(Canvas canvas, double Function(int) x, double Function(num) y, Color c) {
+    final i = _focus;
+    final v = i < 0 ? null : values[i];
     if (v == null) return;
-    final at = Offset(x(values.length - 1), y(v));
+    final at = Offset(x(i), y(v));
     canvas.drawCircle(at, 11, Paint()..color = c.withValues(alpha: 0.18));
     canvas.drawCircle(at, 6.5, Paint()..color = palette.surface);
     canvas.drawCircle(at, 4.5, Paint()..color = c);
@@ -363,6 +427,7 @@ class _HealthChartPainter extends CustomPainter {
       _Align.centreBottom => at - Offset(painter.width / 2, painter.height),
       _Align.leftBottom => at - Offset(0, painter.height),
       _Align.leftMiddle => at - Offset(-4, painter.height / 2),
+      _Align.leftTop => at + const Offset(4, 0),
     };
     if (background != null) {
       canvas.drawRRect(
@@ -384,10 +449,11 @@ class _HealthChartPainter extends CustomPainter {
       old.color != color ||
       old.normal != normal ||
       old.better != better ||
+      old.active != active ||
       old.palette != palette;
 }
 
-enum _Align { rightMiddle, centre, centreBottom, leftBottom, leftMiddle }
+enum _Align { rightMiddle, centre, centreBottom, leftBottom, leftMiddle, leftTop }
 
 /// A smooth curve through [pts] that never overshoots them (Fritsch–Carlson
 /// monotone cubic): a smoothed line must not draw a peak that was not there.

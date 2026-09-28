@@ -23,6 +23,11 @@ void main() {
     });
   });
 
+  test('chartStyleFor gives a chart that is not a key metric the style of its mark', () {
+    expect(chartStyleFor(beerMetric), HeroStyle.bars);
+    expect(chartStyleFor(metricByKey[MetricKey.hrvMs]!), HeroStyle.band);
+  });
+
   group('normalRange', () {
     test('is one and a half standard deviations either side of the mean', () {
       // Mean 5, standard deviation 2.

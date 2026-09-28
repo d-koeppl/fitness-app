@@ -7,10 +7,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/format.dart';
+import '../../domain/health_chart.dart';
 import '../../domain/key_metrics.dart';
 import '../../domain/metric_about.dart';
 import '../../domain/series.dart';
-import '../charts/metric_chart.dart';
+import '../charts/health_chart.dart';
 import '../theme/palette.dart';
 import '../widgets/common.dart';
 
@@ -248,6 +249,7 @@ class ChartPanel extends StatelessWidget {
     required this.today,
     required this.active,
     required this.onActiveChange,
+    this.normal,
     this.dim = false,
   });
 
@@ -257,6 +259,9 @@ class ChartPanel extends StatelessWidget {
   final DateTime today;
   final int? active;
   final ValueChanged<int?> onActiveChange;
+
+  /// The band a heart metric is drawn against, when the buckets are days.
+  final NormalRange? normal;
 
   /// Fade the plot while the first load is still in flight, rather than
   /// swapping in a skeleton and jumping the layout.
@@ -291,12 +296,19 @@ class ChartPanel extends StatelessWidget {
           AnimatedOpacity(
             opacity: dim ? 0.4 : 1,
             duration: const Duration(milliseconds: 150),
-            child: MetricChart(
-              series: [ChartSeries(key: metric.title, color: p.hue(metric.color), mark: metric.mark, buckets: buckets)],
+            child: HealthChart(
+              style: chartStyleFor(metric),
+              values: [for (final b in buckets) b.value],
               labels: tickLabels(buckets, period),
+              color: p.hue(metric.color),
               formatTick: metric.formatTick,
               minStep: metric.minStep,
               domain: metric.domain,
+              normal: normal,
+              better: switch (metric) {
+                MetricDef(:final key) => betterFor(key),
+                _ => null,
+              },
               active: active,
               onActiveChange: onActiveChange,
               semanticLabel:

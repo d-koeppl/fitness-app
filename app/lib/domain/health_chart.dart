@@ -28,6 +28,13 @@ HeroStyle heroStyleFor(MetricKey key) => switch (key) {
   _ => HeroStyle.area,
 };
 
+/// The style for any one-series chart: a metric's own, and for a chart
+/// that is not a key metric (the beer count) whatever its mark suggests.
+HeroStyle chartStyleFor(ChartMetric metric) => switch (metric) {
+  MetricDef(:final key) => heroStyleFor(key),
+  _ => metric.mark == ChartMark.bar ? HeroStyle.bars : HeroStyle.area,
+};
+
 /// How far back "normal" looks, whatever range is on screen — a normal that
 /// moved with the 7/30/90 pills would say a different thing about the same
 /// day depending on which one was picked.
