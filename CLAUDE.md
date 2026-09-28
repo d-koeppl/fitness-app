@@ -91,6 +91,11 @@ account signs in only if it is in `ALLOWED_EMAILS` in `.env.local`. The function
 fine; New report then answers 502), or it asks Secret Manager on every
 request. Seed its Firestore with `tools/migrate/import_firestore.py`.
 
+The deployed browser build is `cd app && dart run tool/build_web.dart`
+(`--wasm`, and the KaTeX fonts loaded on first use), which
+`firebase deploy` runs as the hosting predeploy step
+([ADR-036](docs/adr/036-web-load-performance.md)).
+
 Widget tests that write: Dio runs interceptors on a zero-length timer, so
 advance fake time with `tester.pump(Duration.zero)` (`settleRequests` in
 `test/ui/fake_api.dart`); a bare `pump()` never delivers the request.

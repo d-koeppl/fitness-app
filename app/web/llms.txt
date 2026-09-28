@@ -1,0 +1,5 @@
+# Fitness Dashboard
+
+> A private fitness dashboard: calendar, health data, training load and football match performance for one person. Every page needs a Google sign-in on an allow-list, so there is no public content.
+
+- [Fitness Dashboard](https://fitness.koeppl.cc/): the app itself (sign-in required)
