@@ -32,8 +32,39 @@
 
   <title>Fitness Dashboard</title>
   <link rel="manifest" href="manifest.json">
+
+  <!--
+    A loading screen in plain HTML, painted before the Flutter engine has
+    downloaded (several MB on a phone link). Flutter's view covers it, and
+    the script below removes it on the engine's first frame.
+  -->
+  <style>
+    html, body { margin: 0; height: 100%; background: #fafbfe; }
+    #splash {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px;
+      font: 500 22px/1.3 Roboto, system-ui, -apple-system, "Segoe UI", sans-serif;
+      color: #1b1c1e;
+    }
+    #splash img { width: 160px; height: 160px; border-radius: 36px; }
+    #splash p { margin: 0; }
+    #splash .hint { font-size: 14px; font-weight: 400; color: #44474a; }
+    @media (prefers-color-scheme: dark) {
+      html, body { background: #121316; }
+      #splash { color: #e3e2e6; }
+      #splash .hint { color: #c4c6ca; }
+    }
+  </style>
 </head>
 <body>
+  <div id="splash" aria-hidden="true">
+    <img src="icons/Icon-192.png" alt="" width="160" height="160">
+    <p>Fitness Dashboard</p>
+    <p class="hint">Loading…</p>
+  </div>
+  <script>
+    window.addEventListener('flutter-first-frame', () => document.getElementById('splash')?.remove(), { once: true });
+  </script>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader

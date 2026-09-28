@@ -130,9 +130,10 @@ jobs:
         run: flutter test
 
       # Catches what the VM-based tests cannot: code that does not compile
-      # for the browser build the PC uses.
+      # for the browser build the PC uses. The deployed build (ADR-036):
+      # --wasm, which also builds the JavaScript fallback.
       - name: Build web
-        run: flutter build web --release
+        run: dart run tool/build_web.dart
 
   android:
     name: android build

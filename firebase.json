@@ -15,6 +15,7 @@
   },
   "hosting": {
     "public": "app/build/web",
+    "predeploy": ["cd app && dart run tool/build_web.dart"],
     "ignore": ["firebase.json", "**/.*"],
     "rewrites": [{ "source": "**", "destination": "/index.html" }]
   },
