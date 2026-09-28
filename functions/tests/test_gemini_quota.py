@@ -234,3 +234,38 @@ def test_a_missing_api_key_is_a_clear_error(monkeypatch):
     monkeypatch.setattr(settings, "gemini_api_key", "")
     with pytest.raises(RuntimeError, match="GEMINI_API_KEY"):
         gemini._post_gemini(None, {})
+
+
+def test_token_usage_is_logged_per_answer_with_its_purpose(monkeypatch, gemini_key, caplog):
+    """The chat's token counts are stored nowhere else, so this line is how
+    a cheaper prompt shows up as cheaper. Counts Gemini omits read as 0."""
+    usage = {
+        "promptTokenCount": 900,
+        "candidatesTokenCount": 120,
+        "thoughtsTokenCount": 300,
+        "totalTokenCount": 1320,
+    }
+    stub_post(
+        monkeypatch,
+        [FakeResponse(200, {**OK_BODY, "usageMetadata": usage, "modelVersion": "gemini-3.8-flash"})],
+    )
+
+    with caplog.at_level("INFO", logger="api.analysis.gemini"):
+        gemini.chat_completion(None, "system", [{"role": "user", "content": "hi"}])
+
+    assert (
+        "Gemini usage: purpose=coach model=gemini-3.8-flash "
+        "prompt=900 cached=0 output=120 thinking=300 total=1320"
+    ) in caplog.messages
+
+
+def test_a_refused_attempt_logs_no_usage(monkeypatch, gemini_key, caplog):
+    stub_post(monkeypatch, [FakeResponse(429), FakeResponse(200, OK_BODY)])
+
+    with caplog.at_level("INFO", logger="api.analysis.gemini"):
+        gemini._post_gemini(None, {})
+
+    usage_lines = [m for m in caplog.messages if m.startswith("Gemini usage")]
+    assert usage_lines == [
+        "Gemini usage: purpose=report model=fallback-model prompt=0 cached=0 output=0 thinking=0 total=0"
+    ]
