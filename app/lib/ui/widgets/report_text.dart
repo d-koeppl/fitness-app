@@ -3,7 +3,9 @@
 // lib/domain/report_markdown.dart.
 //
 // Math is real LaTeX (flutter_math_fork), as KaTeX drew it on the web; a
-// formula it cannot parse falls back to its source in a monospace run. The
+// formula it cannot parse falls back to its source in a monospace run, as
+// it shows while the browser build fetches the KaTeX fonts on first use
+// (katex_fonts.dart). The
 // coach's ```chart blocks are drawn by ui/charts/coach_chart.dart (ADR-035).
 // Mermaid, which the web drew, only survives in chats written there, and is
 // shown as its source under a line saying so.
@@ -14,6 +16,7 @@ import 'package:flutter_math_fork/flutter_math.dart';
 import '../../domain/report_markdown.dart';
 import '../charts/coach_chart.dart';
 import '../theme/palette.dart';
+import 'katex_fonts.dart';
 
 class ReportText extends StatelessWidget {
   const ReportText(this.markdown, {super.key});
@@ -25,12 +28,20 @@ class ReportText extends StatelessWidget {
     final p = Palette.of(context);
     final body = TypeScale.bodyLarge.copyWith(color: p.onSurfaceVariant);
 
-    Widget math(InlineRun run, TextStyle base) => Math.tex(
-      run.text,
-      mathStyle: run.display ? MathStyle.display : MathStyle.text,
-      textStyle: base.copyWith(color: p.onSurface),
-      onErrorFallback: (_) => Text(run.text, style: base.copyWith(fontFamily: 'monospace')),
-    );
+    Widget math(InlineRun run, TextStyle base) {
+      final source = Text(run.text, style: base.copyWith(fontFamily: 'monospace'));
+      Widget tex() => Math.tex(
+        run.text,
+        mathStyle: run.display ? MathStyle.display : MathStyle.text,
+        textStyle: base.copyWith(color: p.onSurface),
+        onErrorFallback: (_) => source,
+      );
+      if (katexFontsReady) return tex();
+      return FutureBuilder(
+        future: loadKatexFonts(),
+        builder: (context, snapshot) => snapshot.connectionState == ConnectionState.done ? tex() : source,
+      );
+    }
 
     TextSpan inline(String text, TextStyle base) => TextSpan(
       style: base,

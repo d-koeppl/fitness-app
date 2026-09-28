@@ -1,0 +1,3 @@
+# A private dashboard: every page needs a sign-in, so there is nothing to index.
+User-agent: *
+Disallow: /
