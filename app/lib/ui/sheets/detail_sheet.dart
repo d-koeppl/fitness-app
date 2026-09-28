@@ -298,9 +298,10 @@ class ChartPanel extends StatelessWidget {
             duration: const Duration(milliseconds: 150),
             child: HealthChart(
               style: chartStyleFor(metric),
-              values: [for (final b in buckets) b.value],
+              series: [
+                HealthSeries(values: [for (final b in buckets) b.value], color: p.hue(metric.color)),
+              ],
               labels: tickLabels(buckets, period),
-              color: p.hue(metric.color),
               formatTick: metric.formatTick,
               minStep: metric.minStep,
               domain: metric.domain,

@@ -3,7 +3,7 @@
 // each zone starts, and the time spent in each one underneath. The port of
 // fitness-dashboard's web/components/HeartRateChart.tsx.
 //
-// Not MetricChart: the x-axis is minutes inside one session, the points are
+// Not HealthChart: the x-axis is minutes inside one session, the points are
 // unevenly spaced in time, and the colour of the line is itself a value.
 // The trace arrives already thinned by the server, keeping each bucket's
 // highest and lowest reading — the peaks are what the colouring is about.
@@ -19,7 +19,7 @@ import '../theme/palette.dart';
 
 const _aspect = 320 / 176;
 
-/// Narrower than MetricChart's gutter: these labels are always a bare bpm.
+/// Narrower than HealthChart's gutter: these labels are always a bare bpm.
 const _axisWidth = 34.0;
 
 class HeartRateChart extends StatelessWidget {

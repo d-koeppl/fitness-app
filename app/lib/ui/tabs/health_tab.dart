@@ -395,9 +395,8 @@ class _FeaturedCard extends StatelessWidget {
               const SizedBox(height: 16),
               HealthChart(
                 style: card.style,
-                values: card.values,
+                series: [HealthSeries(values: card.values, color: p.hue(card.hue))],
                 labels: heroLabels(card.dates),
-                color: p.hue(card.hue),
                 formatTick: metric.formatTick,
                 minStep: metric.minStep,
                 domain: metric.domain,

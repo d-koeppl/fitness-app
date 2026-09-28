@@ -1,8 +1,8 @@
 // A chart the coach drew in a reply (ADR-035): a ```chart block, parsed by
-// lib/domain/coach_chart.dart. Line and bar charts go through MetricChart,
+// lib/domain/coach_chart.dart. Line and bar charts go through HealthChart,
 // the detail sheets' chart, so a chart in a reply reads like every other
 // chart in the app — one labelled y-axis, gaps for missing values, and the
-// crosshair. A pie is fl_chart's own, with its shares written out beside it.
+// crosshair. Its lines stay straight: the x-axis may be categories. A pie is fl_chart's own, with its shares written out beside it.
 //
 // A block that does not parse is shown as its source with the reason, as
 // the web did for a Mermaid diagram it could not render: the model wrote
@@ -16,9 +16,8 @@ import 'package:flutter/material.dart';
 import '../../domain/coach_chart.dart';
 import '../../domain/format.dart';
 import '../../domain/key_metrics.dart';
-import '../../domain/series.dart';
 import '../theme/palette.dart';
-import 'metric_chart.dart';
+import 'health_chart.dart';
 
 /// How many x-axis labels fit under a phone-width chart.
 const _maxTicks = 6;
@@ -85,12 +84,7 @@ class _CoachChartViewState extends State<CoachChartView> {
             sections: [
               for (final (i, v) in values.indexed)
                 if (v != null && v > 0)
-                  PieChartSectionData(
-                    value: v,
-                    color: colors[i % colors.length],
-                    radius: 44,
-                    showTitle: false,
-                  ),
+                  PieChartSectionData(value: v, color: colors[i % colors.length], radius: 44, showTitle: false),
             ],
           ),
         ),
@@ -108,22 +102,15 @@ class _CoachChartViewState extends State<CoachChartView> {
     } else {
       final n = chart.labels.length;
       final every = (n / _maxTicks).ceil();
-      final epoch = DateTime(2000);
-      final buckets = [
-        for (final s in chart.series)
-          [
-            for (final (i, v) in s.values.indexed)
-              Bucket(key: '$i', start: epoch, end: epoch, value: v, days: v == null ? 0 : 1),
-          ],
-      ];
-      plot = MetricChart(
+      plot = HealthChart(
         series: [
           for (final (i, s) in chart.series.indexed)
-            ChartSeries(
-              key: s.name,
+            HealthSeries(
+              values: s.values,
               color: colors[i % colors.length],
               mark: chart.type == CoachChartType.bar ? ChartMark.bar : ChartMark.line,
-              buckets: buckets[i],
+              // The x-axis may be categories, not days.
+              smooth: false,
             ),
         ],
         labels: [for (var i = 0; i < n; i++) (i % every == 0 || i == n - 1) ? chart.labels[i] : null],
@@ -138,9 +125,7 @@ class _CoachChartViewState extends State<CoachChartView> {
         for (final (i, s) in chart.series.indexed)
           _LegendEntry(
             color: colors[i % colors.length],
-            text: at == null
-                ? s.name
-                : '${s.name}: ${s.values[at] == null ? '—' : '${fmt(s.values[at]!)}$unit'}',
+            text: at == null ? s.name : '${s.name}: ${s.values[at] == null ? '—' : '${fmt(s.values[at]!)}$unit'}',
           ),
       ];
     }
