@@ -4,6 +4,10 @@
 import 'package:fitness_api/fitness_api.dart';
 import 'package:flutter/material.dart';
 
+import '../../domain/format.dart';
+import '../../domain/health_chart.dart';
+import '../../domain/key_metrics.dart';
+import '../charts/health_chart.dart';
 import '../theme/palette.dart';
 import 'metrics.dart';
 
@@ -175,7 +179,8 @@ class _RecoveryBar extends StatelessWidget {
 }
 
 /// Daily load as bars, fitness and fatigue as the two averages riding on
-/// top — the last 42 days.
+/// top — the last 42 days. A picture: the card opens the sheet with the
+/// crosshair.
 class LoadChart extends StatelessWidget {
   const LoadChart({super.key, required this.series});
 
@@ -186,80 +191,16 @@ class LoadChart extends StatelessWidget {
     final points = series.length > 42 ? series.sublist(series.length - 42) : series;
     if (points.length < 2) return const SizedBox.shrink();
     final p = Palette.of(context);
-    return AspectRatio(
-      aspectRatio: 320 / 118,
-      child: CustomPaint(
-        painter: _LoadChartPainter(
-          points,
-          bar: p.surfaceContainerHighest,
-          fitness: p.fitnessColor,
-          fatigue: p.fatigueColor,
-        ),
-      ),
+    return HealthChart(
+      series: [
+        HealthSeries(values: [for (final pt in points) pt.load], color: p.loadColor, mark: ChartMark.bar),
+        HealthSeries(values: [for (final pt in points) pt.fatigue], color: p.fatigueColor),
+        HealthSeries(values: [for (final pt in points) pt.fitness], color: p.fitnessColor),
+      ],
+      labels: heroLabels([for (final pt in points) parseDay(pt.date)]),
+      formatTick: (v) => '${jsRound(v)}',
+      minStep: 1,
+      semanticLabel: 'Training load, fitness and fatigue over the last ${points.length} days',
     );
   }
-}
-
-class _LoadChartPainter extends CustomPainter {
-  _LoadChartPainter(this.points, {required this.bar, required this.fitness, required this.fatigue});
-
-  final List<DayPointOut> points;
-  final Color bar;
-  final Color fitness;
-  final Color fatigue;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const w = 320.0, h = 118.0, pad = 6.0;
-    canvas.scale(size.width / w, size.height / h);
-
-    var max = 1.0;
-    for (final pt in points) {
-      for (final v in [pt.fitness, pt.fatigue, pt.load]) {
-        if (v > max) max = v.toDouble();
-      }
-    }
-    double x(int i) => pad + i / (points.length - 1) * (w - pad * 2);
-    double y(num v) => h - pad - v / max * (h - pad * 2);
-    final barW = ((w - pad * 2) / points.length - 1.6).clamp(2.0, double.infinity);
-
-    final barPaint = Paint()..color = bar;
-    for (final (i, pt) in points.indexed) {
-      final top = y(pt.load);
-      final height = (h - pad - top).clamp(0.0, double.infinity);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(x(i) - barW / 2, top, barW, height),
-          Radius.circular(barW / 2 < 2 ? barW / 2 : 2),
-        ),
-        barPaint,
-      );
-    }
-
-    Path line(num Function(DayPointOut) pick) {
-      final path = Path()..moveTo(x(0), y(pick(points.first)));
-      for (var i = 1; i < points.length; i++) {
-        path.lineTo(x(i), y(pick(points[i])));
-      }
-      return path;
-    }
-
-    final area = line((pt) => pt.fitness)
-      ..lineTo(x(points.length - 1), h - pad)
-      ..lineTo(x(0), h - pad)
-      ..close();
-    canvas.drawPath(area, Paint()..color = fitness.withValues(alpha: 0.12));
-
-    Paint stroke(Color c, double width) => Paint()
-      ..color = c
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = width
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(line((pt) => pt.fatigue), stroke(fatigue, 2));
-    canvas.drawPath(line((pt) => pt.fitness), stroke(fitness, 2.6));
-  }
-
-  @override
-  bool shouldRepaint(_LoadChartPainter old) =>
-      old.points != points || old.bar != bar || old.fitness != fitness || old.fatigue != fatigue;
 }

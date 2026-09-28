@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/actions.dart';
 import '../../data/dashboard.dart';
 import '../../domain/format.dart';
+import '../../domain/health_chart.dart';
 import '../../domain/key_metrics.dart';
 import '../../domain/metric_about.dart';
 import '../../domain/series.dart';
@@ -73,6 +74,15 @@ class _MetricDetailState extends ConsumerState<MetricDetail> {
     final (:points, :loading, :error) = _source();
     final spec = periodSpec(_period);
     final buckets = bucketSeries(points, _period, _today);
+    // The daily band says nothing about weekly or monthly averages, which
+    // swing far less than days do.
+    final since = addDays(_today, -(baselineDays - 1));
+    final normal = heroStyleFor(metric.key) == HeroStyle.band && spec.aggregate == Aggregate.daily
+        ? normalRange([
+            for (final point in points)
+              if (!point.date.isBefore(since)) point.value,
+          ])
+        : null;
 
     return DetailSheet(
       title: metric.title,
@@ -92,6 +102,7 @@ class _MetricDetailState extends ConsumerState<MetricDetail> {
             today: _today,
             active: _active,
             onActiveChange: (i) => setState(() => _active = i),
+            normal: normal,
             dim: loading && points.isEmpty,
           ),
         if (error == null && !loading && seriesAverage(buckets) == null)

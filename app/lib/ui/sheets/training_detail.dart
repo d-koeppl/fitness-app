@@ -14,7 +14,7 @@ import '../../domain/format.dart';
 import '../../domain/key_metrics.dart';
 import '../../domain/metric_about.dart';
 import '../../domain/series.dart';
-import '../charts/metric_chart.dart';
+import '../charts/health_chart.dart';
 import '../theme/palette.dart';
 import '../widgets/common.dart';
 import 'detail_sheet.dart';
@@ -168,11 +168,11 @@ class _TrainingDetailState extends ConsumerState<TrainingDetail> {
                 ],
               ),
               const SizedBox(height: 12),
-              MetricChart(
+              HealthChart(
                 series: [
-                  ChartSeries(key: 'load', color: p.loadColor, mark: ChartMark.bar, buckets: load),
+                  HealthSeries(values: [for (final b in load) b.value], color: p.loadColor, mark: ChartMark.bar),
                   for (final line in lines)
-                    ChartSeries(key: line.label, color: line.color, mark: ChartMark.line, buckets: line.buckets),
+                    HealthSeries(values: [for (final b in line.buckets) b.value], color: line.color),
                 ],
                 labels: tickLabels(load, _period),
                 formatTick: (v) => '${jsRound(v)}',

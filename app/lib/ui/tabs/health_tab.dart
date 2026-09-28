@@ -1,7 +1,8 @@
 // The eleven key metrics and the range that drives them — ported from
 // fitness-dashboard's web/components/tabs/HealthTab.tsx. One metric is
-// drawn at chart size, picked from the chip row; the rest sit under it as a
-// list. The detail sheet behind each arrives in phase 5.
+// drawn at chart size over the whole range, in the style its kind of number
+// wants (heroStyleFor); the rest sit under it as a list, each with a track
+// showing where today falls in the range.
 
 import 'package:fitness_api/fitness_api.dart';
 import 'package:flutter/material.dart';
@@ -9,12 +10,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/dashboard.dart';
 import '../../domain/format.dart';
+import '../../domain/health_chart.dart';
 import '../../domain/key_metrics.dart';
+import '../charts/health_chart.dart';
 import '../sheets/detail_sheet.dart';
 import '../sheets/metric_detail.dart';
 import '../theme/palette.dart';
 import '../widgets/common.dart';
-import '../widgets/metrics.dart';
 
 /// The same icon each metric wears on the Today tiles.
 const _metricIcon = <MetricKey, IconData>{
@@ -34,28 +36,39 @@ const _metricIcon = <MetricKey, IconData>{
 /// Everything one card needs, already reduced to numbers and strings.
 class MetricCard {
   const MetricCard({
-    required this.key,
-    required this.title,
+    required this.metric,
     required this.value,
     required this.values,
     required this.dates,
-    required this.hue,
     required this.chip,
+    this.normal,
+    this.position,
   });
 
-  final MetricKey key;
-  final String title;
+  final MetricDef metric;
   final String value;
+
+  /// The range, oldest first: what the featured chart draws.
   final List<num?> values;
   final List<DateTime> dates;
-  final MetricHue hue;
   final String chip;
+
+  /// The last [baselineDays] days' normal, for a [HeroStyle.band] metric.
+  final NormalRange? normal;
+
+  /// Where the current value sits in the range, for the list row.
+  final RangePosition? position;
+
+  MetricKey get key => metric.key;
+  String get title => metric.title;
+  MetricHue get hue => metric.color;
+  HeroStyle get style => heroStyleFor(metric.key);
 }
 
 /// One card from a metric and the rows it reads (oldest first).
 ///
-/// The sparkline is always the last seven rows — the weekday row under it
-/// has room for seven — while [range] drives the chip's average.
+/// [range] drives the chart, the row's track and the chip's average; the
+/// normal band looks further back, over [baselineDays] of [rows].
 MetricCard buildCard<T>({
   required MetricDef metric,
   required List<T> rows,
@@ -64,7 +77,6 @@ MetricCard buildCard<T>({
   required int range,
   LatestMeasurementsOut? lastKnown,
 }) {
-  final week = rows.length > 7 ? rows.sublist(rows.length - 7) : rows;
   final newest = rows.isEmpty ? null : rows.last;
   final MeasurementOut? carried = switch (metric.key) {
     MetricKey.weightKg => lastKnown?.weightKg,
@@ -74,7 +86,9 @@ MetricCard buildCard<T>({
   final reading = currentReading(newest == null ? null : pick(newest), newest == null ? null : date(newest), carried);
   final current = reading?.value;
   final inRange = rows.length > range ? rows.sublist(rows.length - range) : rows;
-  final rangeAvg = average(inRange.map(pick));
+  final rangeValues = inRange.map(pick).toList();
+  final rangeAvg = average(rangeValues);
+  final baseline = rows.length > baselineDays ? rows.sublist(rows.length - baselineDays) : rows;
 
   final String chip;
   if (metric.key == MetricKey.steps) {
@@ -88,14 +102,14 @@ MetricCard buildCard<T>({
   }
 
   return MetricCard(
-    key: metric.key,
-    title: metric.title,
+    metric: metric,
     value: current != null ? metric.format(current) : dash,
     // What was measured: a carried-forward value is not drawn as a point.
-    values: week.map(pick).toList(),
-    dates: week.map(date).toList(),
-    hue: metric.color,
+    values: rangeValues,
+    dates: inRange.map(date).toList(),
     chip: chip,
+    normal: heroStyleFor(metric.key) == HeroStyle.band ? normalRange(baseline.map(pick)) : null,
+    position: rangePosition(rangeValues, current),
   );
 }
 
@@ -186,16 +200,7 @@ class HealthTab extends ConsumerWidget {
         if (state.errors.training == null && data.training != null && data.training!.series.isEmpty)
           Notice(data.training!.headline),
         if (featured != null) ...[
-          MetricChartCard(
-            title: featured.title,
-            value: featured.value,
-            values: featured.values,
-            dates: featured.dates,
-            color: p.hue(featured.hue),
-            band: p.band(featured.hue),
-            chip: featured.chip,
-            onTap: () => _open(context, featured.key),
-          ),
+          _FeaturedCard(featured, range: range, onTap: () => _open(context, featured.key)),
           const SizedBox(height: 12),
           _MetricChips(cards: cards, selected: featured.key, onSelect: ref.read(_featuredProvider.notifier).set),
           const SizedBox(height: 12),
@@ -258,7 +263,7 @@ class _MetricChips extends StatelessWidget {
 
 void _open(BuildContext context, MetricKey key) => openSheet(context, MetricDetail(metric: metricByKey[key]!));
 
-/// Icon, name, a hairline trend and the current value.
+/// Icon, name, where today sits in the range, and the current value.
 class _MetricRow extends StatelessWidget {
   const _MetricRow(this.card);
 
@@ -269,6 +274,8 @@ class _MetricRow extends StatelessWidget {
     final p = Palette.of(context);
     final color = p.hue(card.hue);
     final band = p.band(card.hue);
+    final position = card.position;
+    final showTrack = position != null && MediaQuery.sizeOf(context).width >= 380;
     return InkWell(
       onTap: () => _open(context, card.key),
       child: Padding(
@@ -286,18 +293,119 @@ class _MetricRow extends StatelessWidget {
               ),
             ),
             // Hidden on the narrowest phones, as on the web.
-            if (MediaQuery.sizeOf(context).width >= 380) ...[
-              SizedBox(
-                width: 56,
-                child: MiniChart(values: card.values, color: color, band: band, dense: true),
-              ),
-              const SizedBox(width: 12),
+            if (showTrack) ...[
+              const SizedBox(width: 8),
+              RangeTrack(position: position, color: color, formatTick: card.metric.formatTick),
+              const SizedBox(width: 16),
             ],
-            Text(
-              card.value,
-              style: TypeScale.titleSmall.copyWith(color: p.onSurface, fontFeatures: TypeScale.tabular),
+            // A fixed width while the tracks show, so they line up down the list.
+            SizedBox(
+              width: showTrack ? 76 : null,
+              child: Text(
+                card.value,
+                textAlign: TextAlign.right,
+                style: TypeScale.titleSmall.copyWith(color: p.onSurface, fontFeatures: TypeScale.tabular),
+              ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The featured metric: its title, big value and chip, and the chart in
+/// the metric's style.
+class _FeaturedCard extends StatelessWidget {
+  const _FeaturedCard(this.card, {required this.range, required this.onTap});
+
+  final MetricCard card;
+  final int range;
+
+  /// Opens the metric's sheet.
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    final metric = card.metric;
+    final newest = card.values.lastOrNull;
+    final normal = card.normal;
+    final better = betterFor(metric.key);
+    final status = normal != null && newest != null ? bandStatus(normal, newest) : null;
+
+    Widget pill(String text, Color background, Color foreground, {Color? dot}) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(999)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (dot != null) ...[
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 6),
+          ],
+          Text(text, style: TypeScale.labelMedium.copyWith(color: foreground)),
+        ],
+      ),
+    );
+
+    return Material(
+      color: p.surface,
+      borderRadius: BorderRadius.circular(Shape.xl),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(card.title, style: TypeScale.titleSmall.copyWith(color: p.onSurfaceVariant)),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    card.value,
+                    style: TypeScale.headlineMedium.copyWith(color: p.onSurface, fontFeatures: TypeScale.tabular),
+                  ),
+                  pill(card.chip, p.surfaceContainerHigh, p.onSurfaceVariant),
+                  if (status != null)
+                    verdictFor(status, better) != Verdict.worse
+                        ? pill(
+                            bandStatusLabel(status, better),
+                            p.success.container,
+                            p.success.onContainer,
+                            dot: p.success.color,
+                          )
+                        : pill(
+                            bandStatusLabel(status, better),
+                            p.warning.container,
+                            p.warning.onContainer,
+                            dot: p.warning.color,
+                          ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              HealthChart(
+                style: card.style,
+                series: [HealthSeries(values: card.values, color: p.hue(card.hue))],
+                labels: heroLabels(card.dates),
+                formatTick: metric.formatTick,
+                minStep: metric.minStep,
+                domain: metric.domain,
+                normal: normal,
+                better: better,
+                semanticLabel: '${card.title}, last $range days',
+              ),
+            ],
+          ),
         ),
       ),
     );

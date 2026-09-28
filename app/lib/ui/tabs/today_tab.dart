@@ -33,8 +33,9 @@ class TodayTab extends ConsumerWidget {
     final latest = data.latest;
     final previous = data.previous;
 
-    final sleepAvg = average(data.daily.map((d) => d.sleepMinutes));
-    final weightAvg = average(data.daily.map((d) => d.weightKg));
+    final window = data.inRange(ref.watch(healthRangeProvider));
+    final sleepAvg = average(window.map((d) => d.sleepMinutes));
+    final weightAvg = average(window.map((d) => d.weightKg));
     // Weight is not recorded every day: fall back to the last reading and
     // let the subtitle carry its date (ADR-018).
     final weight = currentReading(latest?.weightKg, latest?.date, data.lastKnown?.weightKg);
