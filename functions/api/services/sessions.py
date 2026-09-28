@@ -58,6 +58,7 @@ from datetime import date as date_type
 from datetime import datetime
 
 from api.integrations.google_health import EXERCISE_DATA_TYPE, as_number
+from api.store.rows import MatchPerformance
 
 # Lifted out of `metrics` into named fields of their own: these two are the
 # ones the list rows and the summary line are built from, so the frontend
@@ -115,6 +116,11 @@ class ExerciseSession:
     # already stopped counting it, and a struck-through number says more
     # about a skipped session than a zero does.
     skipped: bool = False
+    # The ÖFB match this session was, when it was one: the tracked workout
+    # the watch recorded through kick-off, or the estimated row for a match
+    # it missed. Attached by `services/exercises.py`, which is the layer
+    # that has the schedule to decide it from.
+    match: MatchPerformance | None = None
 
 
 def _timestamp(interval: dict, key: str) -> datetime | None:

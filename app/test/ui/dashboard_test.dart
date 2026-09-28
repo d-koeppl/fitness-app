@@ -48,6 +48,54 @@ void main() {
     expect(find.text('1W 0D 0L'), findsOneWidget);
   });
 
+  testWidgets('a match opens the session it was, with the ÖFB report beside the watch', (tester) async {
+    final match = {...(fixtures()['/matches']! as List).single as Map<String, Object?>, 'session_id': '2026-09-20#0'};
+    final sent = <Sent>[];
+    await pumpDashboard(
+      tester,
+      fakeApi({
+        ...fixtures(),
+        '/matches': [match],
+        // Not in the dashboard's list, so the sheet asks for it by id —
+        // escaped, as the trace is.
+        '/health-data/exercises/2026-09-20%230': {
+          'id': '2026-09-20#0',
+          'date': '2026-09-20',
+          'start_ts': '2026-09-20T13:22:00Z',
+          'end_ts': '2026-09-20T15:44:00Z',
+          'exercise_type': 'SOCCER',
+          'title': null,
+          'duration_minutes': 142,
+          'active_zone_minutes': 249,
+          'average_heart_rate': 153,
+          'estimated_load': null,
+          'metrics': <String, Object>{},
+          'source': 'tracked',
+          'ref_id': null,
+          'skipped': false,
+          'match': match,
+        },
+        '/health-data/exercises/2026-09-20%230/heart-rate': null,
+      }, sent: sent),
+    );
+    await tester.tap(find.text('Fitness').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Matches'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('vs Kirchberg / D.'));
+    await tester.pumpAndSettle();
+
+    expect(sent.where((r) => r.path == '/health-data/exercises/2026-09-20%230'), hasLength(1));
+    // Titled as the match, not "Soccer", with the scoreline and the watch's
+    // numbers on one sheet.
+    expect(find.text('Soccer'), findsNothing);
+    expect(find.text('Match'), findsOneWidget);
+    expect(find.text('3:0'), findsOneWidget);
+    expect(find.text('249.0'), findsWidgets);
+    expect(find.text('153'), findsOneWidget);
+  });
+
   testWidgets('Health features the first metric and lists the rest', (tester) async {
     await pumpDashboard(tester, fakeApi(fixtures()));
     await tester.tap(find.text('Health'));

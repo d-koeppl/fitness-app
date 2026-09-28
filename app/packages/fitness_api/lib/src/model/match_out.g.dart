@@ -22,6 +22,7 @@ MatchOut _$MatchOutFromJson(Map<String, dynamic> json) => $checkedCreate(
         'opponent',
         'red_card',
         'result',
+        'session_id',
         'started',
         'yellow_card',
       ],
@@ -42,6 +43,7 @@ MatchOut _$MatchOutFromJson(Map<String, dynamic> json) => $checkedCreate(
       opponent: $checkedConvert('opponent', (v) => v as String),
       redCard: $checkedConvert('red_card', (v) => v as bool),
       result: $checkedConvert('result', (v) => v as String?),
+      sessionId: $checkedConvert('session_id', (v) => v as String?),
       started: $checkedConvert('started', (v) => v as bool),
       yellowCard: $checkedConvert('yellow_card', (v) => v as bool),
     );
@@ -53,6 +55,7 @@ MatchOut _$MatchOutFromJson(Map<String, dynamic> json) => $checkedCreate(
     'minutesPlayed': 'minutes_played',
     'oefbGameId': 'oefb_game_id',
     'redCard': 'red_card',
+    'sessionId': 'session_id',
     'yellowCard': 'yellow_card',
   },
 );
@@ -67,6 +70,7 @@ Map<String, dynamic> _$MatchOutToJson(MatchOut instance) => <String, dynamic>{
   'opponent': instance.opponent,
   'red_card': instance.redCard,
   'result': instance.result,
+  'session_id': instance.sessionId,
   'started': instance.started,
   'yellow_card': instance.yellowCard,
 };

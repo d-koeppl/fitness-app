@@ -215,7 +215,9 @@ class _SessionRow extends StatelessWidget {
       leading: Opacity(
         opacity: session.skipped ? 0.5 : 1,
         child: IconDisc(
-          icon: session.source_ == 'match' ? Icons.emoji_events_outlined : Icons.directions_run,
+          icon: session.source_ == 'match' || session.match != null
+              ? Icons.emoji_events_outlined
+              : Icons.directions_run,
           background: estimated ? p.secondary.container : p.tertiary.container,
           color: estimated ? p.secondary.onContainer : p.tertiary.onContainer,
         ),
@@ -370,21 +372,17 @@ class _MatchRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = Palette.of(context);
-    final outcome = matchOutcome(match);
-    final badge = p.outcomeTone(outcome.letter);
+    final sessionId = match.sessionId;
     return _ListRow(
-      leading: Container(
-        width: 42,
-        height: 42,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(color: badge.bg, shape: BoxShape.circle),
-        child: Text(
-          outcome.letter,
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: badge.fg),
-        ),
-      ),
+      // The session this match was — tracked, or the estimate for one the
+      // watch missed. Null for an untracked match on the bench, or one from
+      // before the first tracked day: nothing to open.
+      onTap: sessionId == null
+          ? null
+          : () => openSheet(context, ExerciseDetailById(sessionId: sessionId, title: matchTitle(match))),
+      leading: OutcomeBadge(letter: matchOutcome(match).letter),
       title: Text(
-        '${match.homeAway == 'home' ? 'vs ' : '@ '}${match.opponent}',
+        matchTitle(match),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TypeScale.titleSmall.copyWith(color: p.onSurface),

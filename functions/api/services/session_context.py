@@ -42,6 +42,7 @@ from api.services.exercises import find_sessions
 from api.services.heart_rate import SessionHeartRate, session_heart_rate
 from api.services.sessions import TRACKED, ExerciseSession
 from api.store.firestore import FirestoreStore
+from api.store.rows import MatchPerformance
 
 # What `heart_rate.status` can say, and what each one means to a reader who
 # only has the payload:
@@ -173,7 +174,26 @@ def _serialize(session: ExerciseSession, trace: SessionHeartRate | None) -> dict
         # Google's own field names, units and all — the same pass-through
         # the summary sections use (ADR-012).
         "metrics": session.metrics,
+        # The ÖFB report's side of the same game, when the session was one:
+        # a model asked how a match went should not have to guess which
+        # match, or the score, from a heart rate trace.
+        "match": _serialize_match(session.match),
         "heart_rate": _serialize_heart_rate(trace, tracked),
+    }
+
+
+def _serialize_match(match: MatchPerformance | None) -> dict | None:
+    if match is None:
+        return None
+    return {
+        "opponent": match.opponent,
+        "home_away": match.home_away,
+        "result": match.result,
+        "started": match.started,
+        "minutes_played": match.minutes_played,
+        "goals": match.goals,
+        "yellow_card": match.yellow_card,
+        "red_card": match.red_card,
     }
 
 

@@ -186,6 +186,29 @@ class SegmentedPills<T> extends StatelessWidget {
   }
 }
 
+/// The W / D / L disc a match leads with, in its outcome's tone.
+class OutcomeBadge extends StatelessWidget {
+  const OutcomeBadge({super.key, required this.letter, this.size = 42});
+
+  final String letter;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = Palette.of(context).outcomeTone(letter);
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(color: tone.bg, shape: BoxShape.circle),
+      child: Text(
+        letter,
+        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: tone.fg),
+      ),
+    );
+  }
+}
+
 /// A round icon disc, as the list rows lead with.
 class IconDisc extends StatelessWidget {
   const IconDisc({

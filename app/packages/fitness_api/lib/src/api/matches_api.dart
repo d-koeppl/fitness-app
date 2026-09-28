@@ -18,7 +18,7 @@ class MatchesApi {
   const MatchesApi(this._dio);
 
   /// List Matches
-  /// Newest first, undated rows before all of them.
+  /// Newest first, undated rows before all of them. Each names the session it was, when there is one (&#x60;session_id&#x60;).
   ///
   /// Parameters:
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation

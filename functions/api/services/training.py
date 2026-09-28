@@ -48,7 +48,7 @@ from api.services.sessions import ExerciseSession, placed_start, sessions_for_da
 from api.services.skips import skipped_refs
 from api.store.firestore import FirestoreStore
 from api.store.like import ilike
-from api.store.rows import CalendarEvent, DailyHealth
+from api.store.rows import CalendarEvent, DailyHealth, MatchPerformance
 
 # How many days of the per-day series to *return*. Not a model window — the
 # maths always runs over everything (see build_day_inputs). A year is what
@@ -80,6 +80,14 @@ class ScheduledActivity:
     covered: bool
     tracked_azm: float | None
     skipped: bool
+    # The tracked session that *is* this one, when the watch recorded it —
+    # the longest of the covering sessions. Display only: it links a match
+    # in the ÖFB log to the workout behind it, and nothing the model counts
+    # reads it. See `_tracked_session`.
+    tracked_session_id: str | None = None
+    # The ÖFB row, for a match: what the session detail shows beside the
+    # watch's numbers. None for a training.
+    match: MatchPerformance | None = None
 
 
 @dataclass(frozen=True)
@@ -154,6 +162,54 @@ def _coverage(
     return False, None
 
 
+def _tracked_session(
+    start_ts: datetime | None,
+    covered: bool,
+    day_sessions: list[ExerciseSession],
+) -> str | None:
+    """Which tracked session a scheduled one *was*, for display.
+
+    Follows `_coverage` case by case, but answers a different question —
+    not "is there load to estimate" but "which workout do I open" — and so
+    is stricter where coverage is generous:
+
+    1. Sessions in the window, or running at the scheduled start: the
+       longest of them. A short warm-up tracked on its own and the match
+       tracked after it both cover kick-off; the match is the long one.
+    2. Unplaceable sessions covering the day: only when there is exactly
+       one. Two could be anything.
+    3. No scheduled time at all: the day-level rule covers a match with a
+       morning walk, which is right for the load and wrong for "open the
+       match". So only a single session recorded *as football* is taken.
+    """
+    if not covered:
+        return None
+
+    if start_ts is not None:
+        covering = [
+            session
+            for session in day_sessions
+            if (start := placed_start(session)) is not None
+            and covers(start_ts, start, session.end_ts)
+        ]
+        if covering:
+            return max(covering, key=lambda s: s.duration_minutes or 0.0).id
+        unplaced = [session for session in day_sessions if placed_start(session) is None]
+        return unplaced[0].id if len(unplaced) == 1 else None
+
+    football = [session for session in day_sessions if is_football(session.exercise_type)]
+    return football[0].id if len(football) == 1 else None
+
+
+def is_football(exercise_type: str | None) -> bool:
+    """Whether Google Health recorded the session as association football —
+    "SOCCER" as confirmed live, "FOOTBALL" in case a later API spells it
+    the other way."""
+    return exercise_type is not None and any(
+        word in exercise_type.upper() for word in ("SOCCER", "FOOTBALL")
+    )
+
+
 def _match_kickoffs(events: list[CalendarEvent], tz) -> dict[date, datetime]:
     """Kick-off time per match day, read off the calendar.
 
@@ -214,6 +270,8 @@ def _read_activities(
         activities.append(
             ScheduledActivity(
                 kind=MATCH,
+                tracked_session_id=_tracked_session(kickoff, covered, sessions_on(day)),
+                match=match,
                 # The opponent as the ÖFB log spells it, not as the calendar
                 # event titles it: the log is the row this is actually about,
                 # and the calendar is only being read for the clock.
@@ -322,13 +380,24 @@ def load_days(inputs: list[DayInput], partial_last_day: bool) -> list[DayInput]:
     return inputs[:-1] if partial_last_day and len(inputs) > 1 else inputs
 
 
-def scheduled_sessions(store: FirestoreStore) -> list[EstimatedActivity]:
-    """Every scheduled session the watch did not record, newest first.
+@dataclass(frozen=True)
+class Schedule:
+    """Both halves of the one pass: every scheduled activity, and the ones
+    among them the watch did not record, with what each is worth."""
+
+    activities: list[ScheduledActivity]
+    estimated: list[EstimatedActivity]
+
+
+def schedule(store: FirestoreStore) -> Schedule:
+    """Every scheduled session, plus the ones the watch did not record,
+    newest first.
 
     The listing side of the same pass the model runs on, so the estimate
     shown on a card is the load the chart carries for that day — down to
     the rate, which comes from `observed_rates` over the same trimmed days
-    `compute_training_status` uses.
+    `compute_training_status` uses. `activities` is there for the callers
+    that link a match to its session, so they need not run the pass again.
 
     Future days are excluded because the model does not reach them; today
     is not, so a training this evening can be marked skipped before it is
@@ -336,7 +405,7 @@ def scheduled_sessions(store: FirestoreStore) -> list[EstimatedActivity]:
     """
     inputs, partial_last_day, activities = _assemble(store)
     if not inputs:
-        return []
+        return Schedule(activities=[], estimated=[])
 
     match_rate, training_rate = observed_rates(load_days(inputs, partial_last_day))
     rates = {MATCH: match_rate, TRAINING: training_rate}
@@ -352,7 +421,13 @@ def scheduled_sessions(store: FirestoreStore) -> list[EstimatedActivity]:
         if not activity.covered and activity.minutes > 0
     ]
     estimated.sort(key=lambda e: (e.activity.day, e.activity.start_ts is not None), reverse=True)
-    return estimated
+    return Schedule(activities=activities, estimated=estimated)
+
+
+def scheduled_sessions(store: FirestoreStore) -> list[EstimatedActivity]:
+    """Every scheduled session the watch did not record, newest first —
+    `schedule(store).estimated`."""
+    return schedule(store).estimated
 
 
 def get_training_status(store: FirestoreStore, days: int = DEFAULT_HISTORY_DAYS) -> TrainingStatus:

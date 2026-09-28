@@ -230,6 +230,7 @@ void main() {
       'title': null,
       'estimated_load': null,
       'skipped': false,
+      'match': null,
     };
     final sent = <Sent>[];
     await pumpDashboard(

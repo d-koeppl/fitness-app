@@ -733,6 +733,16 @@
             "title": "Id",
             "type": "string"
           },
+          "match": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MatchOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "metrics": {
             "additionalProperties": {
               "type": "number"
@@ -797,7 +807,8 @@
           "ref_id",
           "title",
           "estimated_load",
-          "skipped"
+          "skipped",
+          "match"
         ],
         "title": "ExerciseSessionOut",
         "type": "object"
@@ -1004,6 +1015,17 @@
             ],
             "title": "Result"
           },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
           "started": {
             "title": "Started",
             "type": "boolean"
@@ -1024,7 +1046,8 @@
           "minutes_played",
           "goals",
           "yellow_card",
-          "red_card"
+          "red_card",
+          "session_id"
         ],
         "title": "MatchOut",
         "type": "object"
@@ -2355,6 +2378,54 @@
         ]
       }
     },
+    "/health-data/exercises/{session_id}": {
+      "get": {
+        "description": "One session by id, however old \u2014 what a match in the \u00d6FB log opens\nthrough its `session_id`, which can name a session long past the end of\n`/exercises`. 404 when the id names nothing.",
+        "operationId": "getExercise",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExerciseSessionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Exercise",
+        "tags": [
+          "health"
+        ]
+      }
+    },
     "/health-data/exercises/{session_id}/heart-rate": {
       "get": {
         "description": "One tracked session's heart rate trace (ADR-020).\n\nIts own request rather than a field on `/exercises`: a trace is a few\nhundred points even after thinning, and the list renders ten sessions\nthat would each be carrying one nobody has opened. The detail sheet\nfetches this when it opens.\n\n404 is \"no such session\" \u2014 a bad id, or one naming a match or training\nthe watch never recorded. A session that exists but has no readings\nanswers 200 with an empty `samples`, which is a different thing and the\nsheet says so.",
@@ -2459,7 +2530,7 @@
     },
     "/matches": {
       "get": {
-        "description": "Newest first, undated rows before all of them.",
+        "description": "Newest first, undated rows before all of them. Each names the\nsession it was, when there is one (`session_id`).",
         "operationId": "listMatches",
         "responses": {
           "200": {

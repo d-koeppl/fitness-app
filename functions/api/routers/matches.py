@@ -10,17 +10,18 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from api.schemas.matches import MatchOut, MissingMatchOut
-from api.services.matches import MissingMatch, missing_match, newest_first
+from api.services.exercises import LinkedMatch
+from api.services.matches import MissingMatch, missing_match, newest_first_with_sessions
 from api.store.firestore import FirestoreStore, get_store
-from api.store.rows import MatchPerformance
 
 router = APIRouter(tags=["matches"])
 
 
 @router.get("/matches", response_model=list[MatchOut])
-def list_matches(store: FirestoreStore = Depends(get_store)) -> list[MatchPerformance]:
-    """Newest first, undated rows before all of them."""
-    return newest_first(store)
+def list_matches(store: FirestoreStore = Depends(get_store)) -> list[LinkedMatch]:
+    """Newest first, undated rows before all of them. Each names the
+    session it was, when there is one (`session_id`)."""
+    return newest_first_with_sessions(store)
 
 
 @router.get("/matches/missing", response_model=MissingMatchOut | None)

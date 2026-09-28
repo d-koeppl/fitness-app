@@ -3,6 +3,7 @@
 //
 
 // ignore_for_file: unused_element
+import 'package:fitness_api/src/model/match_out.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 part 'exercise_session_out.g.dart';
@@ -31,6 +32,8 @@ class ExerciseSessionOut {
     required this.exerciseType,
 
     required this.id,
+
+    required this.match,
 
     required this.metrics,
 
@@ -69,6 +72,9 @@ class ExerciseSessionOut {
   @JsonKey(name: r'id', required: true, includeIfNull: false)
   final String id;
 
+  @JsonKey(name: r'match', required: true, includeIfNull: true)
+  final MatchOut? match;
+
   @JsonKey(name: r'metrics', required: true, includeIfNull: false)
   final Map<String, num> metrics;
 
@@ -99,6 +105,7 @@ class ExerciseSessionOut {
           other.estimatedLoad == estimatedLoad &&
           other.exerciseType == exerciseType &&
           other.id == id &&
+          other.match == match &&
           other.metrics == metrics &&
           other.refId == refId &&
           other.skipped == skipped &&
@@ -116,6 +123,7 @@ class ExerciseSessionOut {
       (estimatedLoad == null ? 0 : estimatedLoad.hashCode) +
       (exerciseType == null ? 0 : exerciseType.hashCode) +
       id.hashCode +
+      (match == null ? 0 : match.hashCode) +
       metrics.hashCode +
       (refId == null ? 0 : refId.hashCode) +
       skipped.hashCode +

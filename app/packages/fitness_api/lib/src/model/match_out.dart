@@ -34,6 +34,8 @@ class MatchOut {
 
     required this.result,
 
+    required this.sessionId,
+
     required this.started,
 
     required this.yellowCard,
@@ -66,6 +68,9 @@ class MatchOut {
   @JsonKey(name: r'result', required: true, includeIfNull: true)
   final String? result;
 
+  @JsonKey(name: r'session_id', required: true, includeIfNull: true)
+  final String? sessionId;
+
   @JsonKey(name: r'started', required: true, includeIfNull: false)
   final bool started;
 
@@ -85,6 +90,7 @@ class MatchOut {
           other.opponent == opponent &&
           other.redCard == redCard &&
           other.result == result &&
+          other.sessionId == sessionId &&
           other.started == started &&
           other.yellowCard == yellowCard;
 
@@ -99,6 +105,7 @@ class MatchOut {
       opponent.hashCode +
       redCard.hashCode +
       (result == null ? 0 : result.hashCode) +
+      (sessionId == null ? 0 : sessionId.hashCode) +
       started.hashCode +
       yellowCard.hashCode;
 

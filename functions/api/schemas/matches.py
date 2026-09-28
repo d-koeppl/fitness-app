@@ -19,6 +19,12 @@ class MatchOut(BaseModel):
     goals: int
     yellow_card: bool
     red_card: bool
+    # The session this match was: the tracked workout that covered kick-off,
+    # or `match#<oefb_game_id>` when the watch missed it and the load is an
+    # estimate. Null for a match with neither — on the bench untracked, or
+    # older than the first tracked day. Open it with
+    # GET /health-data/exercises/{session_id}.
+    session_id: str | None
 
 
 class MissingMatchOut(BaseModel):

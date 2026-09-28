@@ -23,6 +23,7 @@ ExerciseSessionOut _$ExerciseSessionOutFromJson(
         'estimated_load',
         'exercise_type',
         'id',
+        'match',
         'metrics',
         'ref_id',
         'skipped',
@@ -46,6 +47,10 @@ ExerciseSessionOut _$ExerciseSessionOutFromJson(
       estimatedLoad: $checkedConvert('estimated_load', (v) => v as num?),
       exerciseType: $checkedConvert('exercise_type', (v) => v as String?),
       id: $checkedConvert('id', (v) => v as String),
+      match: $checkedConvert(
+        'match',
+        (v) => v == null ? null : MatchOut.fromJson(v as Map<String, dynamic>),
+      ),
       metrics: $checkedConvert(
         'metrics',
         (v) => Map<String, num>.from(v as Map),
@@ -84,6 +89,7 @@ Map<String, dynamic> _$ExerciseSessionOutToJson(ExerciseSessionOut instance) =>
       'estimated_load': instance.estimatedLoad,
       'exercise_type': instance.exerciseType,
       'id': instance.id,
+      'match': instance.match?.toJson(),
       'metrics': instance.metrics,
       'ref_id': instance.refId,
       'skipped': instance.skipped,

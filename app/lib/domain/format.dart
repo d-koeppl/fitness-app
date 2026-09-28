@@ -190,6 +190,13 @@ MatchOutcome matchOutcome(MatchOut match) {
   return MatchOutcome.draw;
 }
 
+/// "vs Treffling" at home, "@ Treffling" away — as the match list and the
+/// API's own estimated-match rows title it.
+String matchTitle(MatchOut match) => '${match.homeAway == 'home' ? 'vs' : '@'} ${match.opponent}';
+
+/// "90'", or "30' off the bench" when the player did not start.
+String fmtMinutesPlayed(MatchOut match) => "${match.minutesPlayed}'${match.started ? '' : ' off the bench'}";
+
 /// "2W 1D 0L", or a dash when there is nothing to summarise.
 String seasonForm(List<MatchOut> matches) {
   if (matches.isEmpty) return dash;
@@ -254,9 +261,12 @@ String exerciseLabel(String? type) {
   return words[0].toUpperCase() + words.substring(1);
 }
 
-/// A session's title row: the schedule's own name for a match or a training
-/// block, Google's prettified activity for a tracked workout.
+/// A session's title row: the match it was, when it was one; else the
+/// schedule's own name for a training block, or Google's prettified
+/// activity for a tracked workout.
 String sessionTitle(ExerciseSessionOut session) {
+  final match = session.match;
+  if (match != null) return matchTitle(match);
   final title = session.title?.trim();
   return title != null && title.isNotEmpty ? title : exerciseLabel(session.exerciseType);
 }

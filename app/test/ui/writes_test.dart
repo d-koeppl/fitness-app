@@ -163,6 +163,7 @@ void main() {
       'source': 'match',
       'ref_id': '1',
       'skipped': skipped,
+      'match': null,
     };
     final api = fakeApi({
       ...fixtures(),
@@ -213,6 +214,7 @@ void main() {
           'source': 'tracked',
           'ref_id': null,
           'skipped': false,
+          'match': null,
         },
       ],
       // "#" unescaped would start a URL fragment and cut the path at the day.
