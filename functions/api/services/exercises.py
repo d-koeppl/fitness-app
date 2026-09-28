@@ -32,28 +32,89 @@ contribution that is not in the total, and never hides one that is.
 The row stays listed, so it can be un-skipped from where it is seen, but
 its minutes are already gone from the model — see services/skips.py and
 ADR-014.
+
+**A session that was a match carries the match.** The ÖFB log and the
+watch describe the same ninety minutes from two sides — result, minutes
+played and goals from one, heart rate and distance from the other — and
+the schedule pass already decides which tracked session covered which
+kick-off. `match_session_ids` turns that decision into a link both ways:
+the session lists its match, and GET /matches names the session to open.
 """
 
 from __future__ import annotations
 
+from dataclasses import asdict, dataclass
 from datetime import date as date_type
 from itertools import islice
 
+from api.analysis.training_load import MATCH
 from api.integrations.google_health import EXERCISE_DATA_TYPE
 from api.services.sessions import ExerciseSession, sessions_for_day
-from api.services.training import scheduled_sessions
+from api.services.training import EstimatedActivity, Schedule, schedule
 from api.store.firestore import FirestoreStore
-from api.store.rows import DailyHealth
+from api.store.rows import DailyHealth, MatchPerformance
 
 DEFAULT_LIMIT = 20
 
 
-def _estimated_rows(store: FirestoreStore, limit: int | None) -> list[ExerciseSession]:
-    """The recent matches and trainings the watch did not record, as rows
-    for the same list the tracked sessions go in.
+@dataclass
+class LinkedMatch(MatchPerformance):
+    """An ÖFB row plus the session that was that match, if there is one:
+    the tracked workout that covered kick-off, the estimated row for a
+    match the watch missed, or None — a match on the bench with no watch,
+    or one older than the first tracked day."""
 
-    `limit` None means all of them — what `find_sessions` needs, where the
-    list wants only the newest few.
+    session_id: str | None = None
+
+
+def _estimated_id(kind: str, ref_id: str) -> str:
+    return f"{kind}#{ref_id}"
+
+
+def match_session_ids(plan: Schedule) -> dict[str, str]:
+    """oefb_game_id -> the id of the session that match was.
+
+    Read off the same pass that decides coverage, so a match links to a
+    tracked session exactly when that session is why it has no estimate,
+    and to its estimated row exactly when it is listed as one.
+    """
+    estimated = {
+        e.activity.ref_id for e in plan.estimated if e.activity.kind == MATCH
+    }
+    links: dict[str, str] = {}
+    for activity in plan.activities:
+        if activity.kind != MATCH:
+            continue
+        if activity.tracked_session_id is not None:
+            links[activity.ref_id] = activity.tracked_session_id
+        elif activity.ref_id in estimated:
+            links[activity.ref_id] = _estimated_id(MATCH, activity.ref_id)
+    return links
+
+
+def linked_match(match: MatchPerformance, links: dict[str, str]) -> LinkedMatch:
+    fields = {k: v for k, v in asdict(match).items() if k != "session_id"}
+    return LinkedMatch(**fields, session_id=links.get(match.oefb_game_id))
+
+
+def _attach_matches(sessions: list[ExerciseSession], plan: Schedule) -> list[ExerciseSession]:
+    """Give every session that was a match its ÖFB row, in place."""
+    links = match_session_ids(plan)
+    by_session = {
+        links[a.ref_id]: a.match
+        for a in plan.activities
+        if a.kind == MATCH and a.match is not None and a.ref_id in links
+    }
+    for session in sessions:
+        match = by_session.get(session.id)
+        if match is not None:
+            session.match = linked_match(match, links)
+    return sessions
+
+
+def _estimated_rows(estimated: list[EstimatedActivity]) -> list[ExerciseSession]:
+    """The given matches and trainings the watch did not record, as rows
+    for the same list the tracked sessions go in.
 
     A mapping, not a calculation. Which sessions these are, and what each
     one is worth, is decided in `services/training.py` on the very pass
@@ -63,7 +124,7 @@ def _estimated_rows(store: FirestoreStore, limit: int | None) -> list[ExerciseSe
     """
     return [
         ExerciseSession(
-            id=f"{item.activity.kind}#{item.activity.ref_id}",
+            id=_estimated_id(item.activity.kind, item.activity.ref_id),
             date=item.activity.day,
             start_ts=item.activity.start_ts,
             # Not the scheduled block's end: a training block is padded to
@@ -81,7 +142,7 @@ def _estimated_rows(store: FirestoreStore, limit: int | None) -> list[ExerciseSe
             estimated_load=item.estimated_load,
             skipped=item.activity.skipped,
         )
-        for item in (scheduled_sessions(store) if limit is None else scheduled_sessions(store)[:limit])
+        for item in estimated
     ]
 
 
@@ -113,7 +174,7 @@ def list_exercise_sessions(store: FirestoreStore, limit: int = DEFAULT_LIMIT) ->
     """The most recent sessions behind the training load, newest first.
 
     Tracked workouts, merged with the untracked matches and trainings the
-    model is estimating load for (`_scheduled_sessions`). Both sides are
+    model is estimating load for (`_estimated_rows`). Both sides are
     fetched `limit` deep and the merge trims, so the list is the newest
     `limit` sessions there were, whichever source they came from.
 
@@ -127,12 +188,14 @@ def list_exercise_sessions(store: FirestoreStore, limit: int = DEFAULT_LIMIT) ->
     # Every matching row holds at least one session, so `limit` rows is
     # always enough to fill `limit` sessions.
     rows = list(islice((row for row in store.health_days_desc() if _has_exercise(row)), limit))
+    plan = schedule(store)
 
-    return sorted(
-        _newest_first(rows) + _estimated_rows(store, limit),
+    sessions = sorted(
+        _newest_first(rows) + _estimated_rows(plan.estimated[:limit]),
         key=_order_key,
         reverse=True,
     )[:limit]
+    return _attach_matches(sessions, plan)
 
 
 def sessions_since(store: FirestoreStore, start: date_type) -> list[ExerciseSession]:
@@ -174,7 +237,7 @@ def find_sessions(store: FirestoreStore, session_ids: list[str]) -> dict[str, Ex
     is a tracked session and is read out of that one day's stored payload —
     the day is in the id, so this costs one row per distinct day however many
     ids are asked for. `match#<ref>` / `training#<ref>` is a session no watch
-    recorded, whose row is built by `scheduled_sessions` on the same pass
+    recorded, whose row is built by `services/training.schedule` on the same pass
     that feeds the model; those are matched by scanning that pass rather than
     rebuilt here, for the reason `_estimated_rows` gives — a second
     derivation is a second chance to disagree with the Fitness chart.
@@ -202,6 +265,9 @@ def find_sessions(store: FirestoreStore, session_ids: list[str]) -> dict[str, Ex
             wants_scheduled = True
 
     found: dict[str, ExerciseSession] = {}
+    # Needed either way: the scheduled rows come from it, and it is what
+    # says which tracked session was a match.
+    plan = schedule(store)
 
     for day in sorted(tracked_days):
         row = store.health_day(day)
@@ -210,9 +276,15 @@ def find_sessions(store: FirestoreStore, session_ids: list[str]) -> dict[str, Ex
                 found[session.id] = session
 
     if wants_scheduled:
-        # Unbounded, unlike `_estimated_rows`: this is a lookup by name, and
-        # the newest N is exactly the wrong window for it.
-        for session in _estimated_rows(store, limit=None):
+        # Every estimate, not the newest few the list takes: a lookup by name,
+        # and the newest N is exactly the wrong window for it.
+        for session in _estimated_rows(plan.estimated):
             found[session.id] = session
 
+    _attach_matches(list(found.values()), plan)
     return {session_id: found[session_id] for session_id in session_ids if session_id in found}
+
+
+def find_session(store: FirestoreStore, session_id: str) -> ExerciseSession | None:
+    """One session by id — what a tap on a match in the ÖFB log opens."""
+    return find_sessions(store, [session_id]).get(session_id)

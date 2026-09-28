@@ -243,3 +243,10 @@ final sessionHeartRateProvider = FutureProvider.autoDispose.family<SessionHeartR
       .getHealthApi()
       .exerciseHeartRate(sessionId: Uri.encodeComponent(sessionId))).data!,
 );
+
+/// One session by id, for a match whose session is not in the dashboard's
+/// list — `/health-data/exercises` only carries the newest few.
+final exerciseSessionProvider = FutureProvider.autoDispose.family<ExerciseSessionOut, String>(
+  (ref, sessionId) async =>
+      (await ref.read(apiProvider).getHealthApi().getExercise(sessionId: Uri.encodeComponent(sessionId))).data!,
+);

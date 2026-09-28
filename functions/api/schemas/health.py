@@ -4,6 +4,8 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict
 
+from api.schemas.matches import MatchOut
+
 
 class DailyHealthOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -84,6 +86,9 @@ class ExerciseSessionOut(BaseModel):
     # The user marked it as not done. The model has already stopped
     # counting it; `estimated_load` still says what it would have been.
     skipped: bool
+    # The ÖFB match this session was — result, minutes played, goals — when
+    # it covered a kick-off, or is the estimate for a match the watch missed.
+    match: MatchOut | None
 
 
 class HeartRateZoneOut(BaseModel):

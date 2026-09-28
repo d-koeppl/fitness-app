@@ -13,6 +13,7 @@ MatchOut match({String homeAway = 'home', String? result = '4:3', int id = 1}) =
       opponent: 'Treffling',
       redCard: false,
       result: result,
+      sessionId: null,
       started: true,
       yellowCard: false,
     );
@@ -36,6 +37,7 @@ ExerciseSessionOut exercise({
   num? estimatedLoad,
   String source = 'tracked',
   String? title,
+  MatchOut? match,
 }) =>
     ExerciseSessionOut(
       activeZoneMinutes: activeZoneMinutes,
@@ -46,6 +48,7 @@ ExerciseSessionOut exercise({
       estimatedLoad: estimatedLoad,
       exerciseType: exerciseType,
       id: '2026-08-20#0',
+      match: match,
       metrics: const {},
       refId: null,
       skipped: false,
@@ -306,6 +309,10 @@ void main() {
 
     test('falls back to the activity label when the title is blank', () {
       expect(sessionTitle(exercise(title: '   ')), 'Running');
+    });
+
+    test('a tracked session that was a match is titled as the match', () {
+      expect(sessionTitle(exercise(exerciseType: 'SOCCER', match: match(homeAway: 'away'))), '@ Treffling');
     });
   });
 

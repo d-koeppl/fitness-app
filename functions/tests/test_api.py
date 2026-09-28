@@ -584,6 +584,99 @@ def test_a_tracked_session_carries_no_estimate_and_nothing_to_skip(client, track
     assert session["skipped"] is False
 
 
+# --- a match and the session it was -----------------------------------------
+
+
+def matches_by_game(client) -> dict[str, dict]:
+    return {match["oefb_game_id"]: match for match in client.get("/matches").json()}
+
+
+def test_a_match_the_watch_recorded_links_to_that_session(client, db, schedule_history):
+    """Kick-off is 15:00 UTC; the SOCCER session runs through it. The ÖFB
+    row names the session, and the session carries the ÖFB row."""
+    day = date.today() - timedelta(days=2)
+    tracked_day(db, day, exercise_point(day.isoformat(), "16:00:00", "18:30:00", "SOCCER", "210"), azm=210)
+    session_id = f"{day.isoformat()}#0"
+
+    assert matches_by_game(client)["g-untracked"]["session_id"] == session_id
+
+    session = listed(client)[session_id]
+    assert session["source"] == "tracked"
+    assert session["match"]["opponent"] == "Treffling"
+    assert session["match"]["result"] == "4:3"
+    assert session["match"]["session_id"] == session_id
+
+
+def test_the_longest_session_at_kick_off_is_the_match(client, db, schedule_history):
+    """A warm-up tracked on its own also covers kick-off; the match is the
+    ninety minutes after it, not the fifteen before."""
+    day = date.today() - timedelta(days=2)
+    tracked_day(
+        db,
+        day,
+        exercise_point(day.isoformat(), "16:40:00", "16:55:00", "RUNNING", "10"),
+        exercise_point(day.isoformat(), "17:00:00", "18:50:00", "SOCCER", "200"),
+        azm=210,
+    )
+
+    assert matches_by_game(client)["g-untracked"]["session_id"] == f"{day.isoformat()}#1"
+    assert listed(client)[f"{day.isoformat()}#0"]["match"] is None
+
+
+def test_a_match_the_watch_missed_links_to_its_estimate(client, schedule_history):
+    assert matches_by_game(client)["g-untracked"]["session_id"] == "match#g-untracked"
+    assert listed(client)["match#g-untracked"]["match"]["goals"] == 1
+
+
+def test_a_morning_walk_is_not_the_match_it_covers_for_the_day(client, db, schedule_history):
+    """With no fixture event the walk covers the match's *load* (the
+    day-level rule), but opening the match must not open a walk."""
+    day = date.today() - timedelta(days=2)
+    db.delete_calendar_events(["fixture-treffling"])
+    tracked_day(db, day, exercise_point(day.isoformat(), "07:00:00", "07:30:00", "WALKING", "3"), azm=3)
+
+    assert matches_by_game(client)["g-untracked"]["session_id"] is None
+    assert listed(client)[f"{day.isoformat()}#0"]["match"] is None
+
+
+def test_with_no_fixture_event_the_days_one_football_session_is_the_match(client, db, schedule_history):
+    day = date.today() - timedelta(days=2)
+    db.delete_calendar_events(["fixture-treffling"])
+    tracked_day(
+        db,
+        day,
+        exercise_point(day.isoformat(), "07:00:00", "07:30:00", "WALKING", "3"),
+        exercise_point(day.isoformat(), "16:00:00", "18:00:00", "SOCCER", "200"),
+        azm=203,
+    )
+
+    assert matches_by_game(client)["g-untracked"]["session_id"] == f"{day.isoformat()}#1"
+
+
+def test_a_match_before_the_first_tracked_day_links_to_nothing(client, seeded):
+    assert all(match["session_id"] is None for match in client.get("/matches").json())
+
+
+def test_a_session_is_served_by_id_with_its_match(client, db, schedule_history):
+    """What a tap on a match opens — a separate read, because the session
+    can be older than anything `/exercises` still lists."""
+    day = date.today() - timedelta(days=2)
+    tracked_day(db, day, exercise_point(day.isoformat(), "17:20:00", "18:50:00", "SOCCER", "210"), azm=210)
+
+    body = client.get(f"/health-data/exercises/{day.isoformat()}%230").json()
+    assert body["active_zone_minutes"] == 210.0
+    assert body["match"]["opponent"] == "Treffling"
+
+    estimated = client.get("/health-data/exercises/training%23training-yesterday").json()
+    assert estimated["source"] == "training"
+    assert estimated["match"] is None
+
+
+def test_an_unknown_session_id_is_a_404(client, schedule_history):
+    assert client.get("/health-data/exercises/2020-01-01%230").status_code == 404
+    assert client.get("/health-data/exercises/match%23no-such-game").status_code == 404
+
+
 # --- skipping ---------------------------------------------------------------
 
 

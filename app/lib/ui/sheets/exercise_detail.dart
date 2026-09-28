@@ -8,6 +8,11 @@
 // gets one section the others do not: the estimate explained, and the
 // control that marks it as not done.
 //
+// A session that was a match carries the ÖFB report's side of it — result,
+// minutes played, goals, cards — in a card of its own, so the watch's
+// numbers and the scoreline read as the one game they were. The Matches
+// list opens this same sheet through [ExerciseDetailById].
+//
 // "Ask the coach about this session" pins it to the coach chat and opens
 // the tab (ADR-021): the coach is sent this session in full — every metric
 // and the whole trace, not the summary row the rolling list carries.
@@ -40,6 +45,40 @@ class ExerciseDetail extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<ExerciseDetail> createState() => _ExerciseDetailState();
+}
+
+/// The sheet for a session known only by id — a match in the Matches list.
+/// Opens straight onto the dashboard's copy when the list holds one, and
+/// fetches it otherwise: a match from last season is long past the newest
+/// few sessions `/health-data/exercises` carries.
+class ExerciseDetailById extends ConsumerWidget {
+  const ExerciseDetailById({super.key, required this.sessionId, required this.title});
+
+  final String sessionId;
+
+  /// Shown while the session loads, so the sheet does not open untitled.
+  final String title;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final listed = ref.watch(
+      dashboardProvider.select((s) => s.data.exercises.where((e) => e.id == sessionId).firstOrNull),
+    );
+    if (listed != null) return ExerciseDetail(session: listed);
+
+    final p = Palette.of(context);
+    final fetched = ref.watch(exerciseSessionProvider(sessionId));
+    final session = fetched.value;
+    if (session != null) return ExerciseDetail(session: session);
+    return DetailSheet(
+      title: title,
+      children: [
+        fetched.hasError
+            ? Text(describeError(fetched.error!), style: TypeScale.bodyMedium.copyWith(color: p.error.color))
+            : Text('Loading…', style: TypeScale.bodyMedium.copyWith(color: p.onSurfaceVariant)),
+      ],
+    );
+  }
 }
 
 class _ExerciseDetailState extends ConsumerState<ExerciseDetail> {
@@ -148,6 +187,7 @@ class _ExerciseDetailState extends ConsumerState<ExerciseDetail> {
             ],
           ),
         ),
+        if (session.match != null) _MatchCard(match: session.match!),
         // Straight under the numbers: it is what you want the moment one of
         // them looks wrong. Idempotent — a session already pinned is not
         // toggled off from a screen that gives no sign it was ever on.
@@ -231,6 +271,75 @@ class _ExerciseDetailState extends ConsumerState<ExerciseDetail> {
             style: TypeScale.labelSmall.copyWith(color: p.onSurfaceVariant),
           ),
       ],
+    );
+  }
+}
+
+/// The ÖFB match report's side of the session: the scoreline and what the
+/// player did in it.
+class _MatchCard extends StatelessWidget {
+  const _MatchCard({required this.match});
+
+  final MatchOut match;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    final outcome = matchOutcome(match);
+    final cards = [if (match.yellowCard) '🟨', if (match.redCard) '🟥'];
+    return SurfaceCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Match', style: TypeScale.labelLarge.copyWith(color: p.onSurfaceVariant)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              OutcomeBadge(letter: outcome.letter),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      matchTitle(match),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TypeScale.titleSmall.copyWith(color: p.onSurface),
+                    ),
+                    Text(fmtDate(match.matchDate), style: TypeScale.labelMedium.copyWith(color: p.onSurfaceVariant)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                match.result ?? dash,
+                style: TypeScale.headlineMedium.copyWith(color: p.onSurface, fontFeatures: TypeScale.tabular),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: StatColumn(
+                  label: 'Minutes',
+                  value: "${match.minutesPlayed}'",
+                  sub: match.started ? 'started' : 'off the bench',
+                ),
+              ),
+              Expanded(
+                child: StatColumn(label: 'Goals', value: '${match.goals}'),
+              ),
+              Expanded(
+                child: StatColumn(label: 'Cards', value: cards.isEmpty ? dash : cards.join(' '), sub: 'ÖFB report'),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

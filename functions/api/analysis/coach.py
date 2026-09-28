@@ -94,7 +94,11 @@ ATTACHED_HEADING = (
     "derived from a resting and a maximum heart rate, not published by the "
     "watch. Before saying a session has no heart rate data, read "
     '`heart_rate.status`: "not_synced" means it has not been fetched yet, '
-    "which is a statement about the sync and not about the session.\n"
+    "which is a statement about the sync and not about the session. "
+    "`match`, when present, is the official ÖFB match report for the game "
+    "this session was — opponent, result from the home side's view, minutes "
+    "played and goals — so a question about how the match went has both "
+    "sides of it.\n"
 )
 
 # What the prompt says when an attached id no longer names a session. Worth

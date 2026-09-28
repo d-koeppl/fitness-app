@@ -42,6 +42,7 @@ Map<String, Object?> fixtures() => {
       'goals': 1,
       'yellow_card': false,
       'red_card': false,
+      'session_id': null,
     },
   ],
   '/matches/missing': null,

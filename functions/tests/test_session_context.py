@@ -115,7 +115,7 @@ def test_a_match_id_is_not_mistaken_for_a_tracked_one(run, db, monkeypatch):
         title="vs Treffling",
         estimated_load=224.0,
     )
-    monkeypatch.setattr(exercises, "_estimated_rows", lambda _db, limit: [untracked])
+    monkeypatch.setattr(exercises, "_estimated_rows", lambda _estimated: [untracked])
 
     assert list(find_sessions(run, ["match#99182"])) == ["match#99182"]
 
@@ -128,7 +128,7 @@ def test_an_untracked_session_says_there_was_never_a_trace(run, db, monkeypatch)
     monkeypatch.setattr(
         exercises,
         "_estimated_rows",
-        lambda _db, limit: [
+        lambda _estimated: [
             exercises.ExerciseSession(
                 id="match#99182",
                 date=date(2026, 8, 16),
@@ -152,6 +152,9 @@ def test_an_untracked_session_says_there_was_never_a_trace(run, db, monkeypatch)
     assert session["active_zone_minutes"] is None
     assert session["heart_rate"]["status"] == UNTRACKED
     assert "never was" in session["heart_rate"]["note"]
+    # Not stubbed through the schedule, so no match is attached — the field
+    # is still there, and says so.
+    assert session["match"] is None
 
 
 def test_an_id_that_names_nothing_is_absent_rather_than_raising(run):

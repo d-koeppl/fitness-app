@@ -1,9 +1,9 @@
 """api/routers/health.py — read-only daily health metrics for the app.
 
-Four shapes of the same sync: `/daily` is the one-row-per-day summary the
+Five shapes of the same sync: `/daily` is the one-row-per-day summary the
 charts plot, `/exercises` the individual sessions behind it,
-`/exercises/{id}/heart-rate` one session's beat-by-beat trace (ADR-020), and
-`/latest` the last known value of the metrics that are not recorded daily.
+`/exercises/{id}` one of them by id, `/exercises/{id}/heart-rate` its
+beat-by-beat trace (ADR-020), and `/latest` the last known value of the metrics that are not recorded daily.
 Pulling the sessions out of the stored payloads is real assembly work, so it
 lives in api/services/exercises.py and api/services/heart_rate.py rather
 than here.
@@ -22,7 +22,7 @@ from api.schemas.health import (
     MeasurementOut,
     SessionHeartRateOut,
 )
-from api.services.exercises import DEFAULT_LIMIT, list_exercise_sessions
+from api.services.exercises import DEFAULT_LIMIT, find_session, list_exercise_sessions
 from api.services.health import latest_measurements
 from api.services.heart_rate import session_heart_rate
 from api.store.firestore import FirestoreStore, get_store
@@ -46,6 +46,17 @@ def list_exercises(
 ) -> list[ExerciseSessionOut]:
     """The most recently tracked workouts, newest first."""
     return [ExerciseSessionOut.model_validate(s) for s in list_exercise_sessions(store, limit)]
+
+
+@router.get("/exercises/{session_id}", response_model=ExerciseSessionOut)
+def get_exercise(session_id: str, store: FirestoreStore = Depends(get_store)) -> ExerciseSessionOut:
+    """One session by id, however old — what a match in the ÖFB log opens
+    through its `session_id`, which can name a session long past the end of
+    `/exercises`. 404 when the id names nothing."""
+    session = find_session(store, session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="No session with that id")
+    return ExerciseSessionOut.model_validate(session)
 
 
 @router.get("/exercises/{session_id}/heart-rate", response_model=SessionHeartRateOut)

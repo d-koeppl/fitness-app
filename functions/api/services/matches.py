@@ -22,6 +22,8 @@ from datetime import date, datetime, time, timedelta
 
 from api.config import settings
 from api.integrations.google_health import local_tz
+from api.services.exercises import LinkedMatch, linked_match, match_session_ids
+from api.services.training import schedule
 from api.store.firestore import FirestoreStore
 from api.store.like import ilike
 from api.store.rows import MatchPerformance
@@ -34,6 +36,13 @@ def newest_first(store: FirestoreStore) -> list[MatchPerformance]:
     return sorted(
         store.matches(), key=lambda m: (m.match_date is None, m.match_date or date.min), reverse=True
     )
+
+
+def newest_first_with_sessions(store: FirestoreStore) -> list[LinkedMatch]:
+    """`newest_first`, each match carrying the id of the session it was —
+    what GET /matches serves, so a tap on a match opens its workout."""
+    links = match_session_ids(schedule(store))
+    return [linked_match(match, links) for match in newest_first(store)]
 
 
 @dataclass(frozen=True)
