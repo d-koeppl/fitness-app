@@ -11,6 +11,7 @@ import 'package:fitness_api/src/api/calendar_api.dart';
 import 'package:fitness_api/src/api/coach_api.dart';
 import 'package:fitness_api/src/api/drinks_api.dart';
 import 'package:fitness_api/src/api/health_api.dart';
+import 'package:fitness_api/src/api/league_api.dart';
 import 'package:fitness_api/src/api/matches_api.dart';
 import 'package:fitness_api/src/api/meta_api.dart';
 import 'package:fitness_api/src/api/oauth_api.dart';
@@ -110,6 +111,12 @@ class FitnessApi {
   /// by doing that all interceptors will not be executed
   HealthApi getHealthApi() {
     return HealthApi(dio);
+  }
+
+  /// Get LeagueApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  LeagueApi getLeagueApi() {
+    return LeagueApi(dio);
   }
 
   /// Get MatchesApi instance, base route and serializer can be overridden by a given but be careful,

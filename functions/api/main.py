@@ -19,6 +19,7 @@ from api.routers import calendar as calendar_router
 from api.routers import coach as coach_router
 from api.routers import drinks as drinks_router
 from api.routers import health as health_router
+from api.routers import league as league_router
 from api.routers import matches as matches_router
 from api.routers import oauth as oauth_router
 from api.routers import push as push_router
@@ -68,6 +69,7 @@ for router in (
     training_router.router,
     drinks_router.router,
     matches_router.router,
+    league_router.router,
     calendar_router.router,
     reports_router.router,
     sync_router.router,

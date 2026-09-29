@@ -203,7 +203,7 @@ class _Transcript extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'Ask about how to prepare for your next match, trends in your data, or when to add extra training.',
+                'Ask how to prepare for your next opponent, about trends in your data, or when to add extra training.',
                 textAlign: TextAlign.center,
                 style: TypeScale.bodyLarge.copyWith(color: p.onSurfaceVariant),
               ),

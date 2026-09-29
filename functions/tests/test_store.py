@@ -12,6 +12,9 @@ from api.store.rows import (
     ConversationMessage,
     DailyHealth,
     ExerciseHeartRate,
+    Fixture,
+    LeagueRow,
+    LeagueTable,
     MatchPerformance,
     OAuthToken,
 )
@@ -143,6 +146,39 @@ def test_matches_between_and_by_game_id(store):
     assert store.match("g0").match_date == date(2026, 8, 30)
     assert store.match("missing") is None
     assert len(store.matches()) == 3
+
+
+def test_league_tables_by_day(store):
+    for day, points in [(date(2026, 9, 12), 8), (date(2026, 9, 19), 11), (date(2026, 9, 26), 11)]:
+        store.put_league_table(
+            LeagueTable(
+                day=day,
+                league="2. Nordwest",
+                rows=[LeagueRow(rank=8, team="Eidenberg/Geng", is_us=True, rank_change=-2, points=points)],
+            )
+        )
+
+    latest = store.league_table()
+    assert latest.day == date(2026, 9, 26)
+    assert latest.league == "2. Nordwest"
+    assert latest.rows == [LeagueRow(rank=8, team="Eidenberg/Geng", is_us=True, rank_change=-2, points=11)]
+    assert latest.fetched_at is not None
+    assert store.league_table(date(2026, 9, 19)).day == date(2026, 9, 19)
+    assert store.league_table(date(2026, 9, 18)).day == date(2026, 9, 12)
+    assert store.league_table(date(2026, 9, 11)) is None
+    assert [t.day for t in store.league_tables()] == [date(2026, 9, 12), date(2026, 9, 19), date(2026, 9, 26)]
+
+
+def test_fixtures_are_replaced_whole(store):
+    assert store.fixtures() == []
+    store.put_fixtures(
+        [
+            Fixture(oefb_game_id="1", kickoff=T0, opponent="Urfahr", home_away="home", art="Liga"),
+            Fixture(oefb_game_id="2", kickoff=None, opponent="Kleinzell", home_away="away"),
+        ]
+    )
+    store.put_fixtures([Fixture(oefb_game_id="2", kickoff=T0, opponent="Kleinzell", home_away="away")])
+    assert store.fixtures() == [Fixture(oefb_game_id="2", kickoff=T0, opponent="Kleinzell", home_away="away")]
 
 
 def test_heart_rate_trace_round_trip(store):

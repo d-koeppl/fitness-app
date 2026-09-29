@@ -1,5 +1,5 @@
-// Training status, the sessions behind it, the week ahead and every
-// match, one at a time — ported from fitness-dashboard's
+// Training status, the sessions behind it, the week ahead, every match
+// and the league table, one at a time — ported from fitness-dashboard's
 // web/components/tabs/FitnessTab.tsx. The session sheet and the load
 // history sheet arrive in phase 5.
 
@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/dashboard.dart';
 import '../../domain/format.dart';
+import '../../domain/league.dart';
 import '../sheets/detail_sheet.dart';
 import '../sheets/exercise_detail.dart';
 import '../sheets/training_detail.dart';
@@ -20,7 +21,8 @@ enum FitnessSegment {
   training('Training'),
   sessions('Sessions'),
   upcoming('Upcoming'),
-  matches('Matches');
+  matches('Matches'),
+  table('Table');
 
   const FitnessSegment(this.label);
   final String label;
@@ -56,6 +58,7 @@ class FitnessTab extends ConsumerWidget {
           FitnessSegment.sessions => const _Sessions(),
           FitnessSegment.upcoming => const _Upcoming(),
           FitnessSegment.matches => const _Matches(),
+          FitnessSegment.table => const _Table(),
         },
       ],
     );
@@ -269,7 +272,6 @@ class _Upcoming extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(dashboardProvider);
-    final p = Palette.of(context);
     final error = state.errors.events;
 
     // The next seven days, counted from the last refresh rather than the
@@ -293,32 +295,42 @@ class _Upcoming extends ConsumerWidget {
       body = const Notice('No upcoming events in the next 7 days.');
     } else {
       body = _RowList(
-        children: [
-          for (final event in events)
-            _ListRow(
-              leading: IconDisc(
-                icon: Icons.calendar_today_outlined,
-                background: p.primary.container,
-                color: p.primary.onContainer,
-              ),
-              title: Text(
-                event.title ?? '(untitled)',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TypeScale.titleSmall.copyWith(color: p.onSurface),
-              ),
-              subtitle: Text(
-                '${fmtEventWhen(event)}${event.location != null ? ' · ${event.location}' : ''}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TypeScale.labelMedium.copyWith(color: p.onSurfaceVariant),
-              ),
-            ),
-        ],
+        children: [for (final event in events) _eventRow(context, event, fixtureForEvent(event, state.data.fixtures))],
       );
     }
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [const SectionTitle('Upcoming'), body]);
+  }
+
+  Widget _eventRow(BuildContext context, CalendarEventOut event, FixtureOut? fixture) {
+    final p = Palette.of(context);
+    final standing = fixture?.opponentStanding;
+    return _ListRow(
+      leading: IconDisc(
+        icon: fixture != null ? Icons.emoji_events_outlined : Icons.calendar_today_outlined,
+        background: p.primary.container,
+        color: p.primary.onContainer,
+      ),
+      title: Text(
+        event.title ?? '(untitled)',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TypeScale.titleSmall.copyWith(color: p.onSurface),
+      ),
+      subtitle: standing == null
+          ? Text(
+              '${fmtEventWhen(event)}${event.location != null ? ' · ${event.location}' : ''}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TypeScale.labelMedium.copyWith(color: p.onSurfaceVariant),
+            )
+          // A match: where the opponent stands instead of the venue.
+          : _meta(
+              context,
+              [Text(fmtEventWhen(event)), Text(fmtStanding(standing))],
+              [_StrengthChip(standing.strength)],
+            ),
+    );
   }
 }
 
@@ -397,12 +409,222 @@ class _MatchRow extends StatelessWidget {
           Text(fmtDate(match.matchDate)),
           Text("${match.minutesPlayed}'"),
           if (match.goals > 0) Text('${match.goals} goal${match.goals > 1 ? 's' : ''}'),
+          if (match.opponentStanding case final standing?) _MatchStanding(standing),
         ],
         [
           if (match.yellowCard) const Tooltip(message: 'Yellow card', child: Text('🟨')),
           if (match.redCard) const Tooltip(message: 'Red card', child: Text('🟥')),
         ],
       ),
+    );
+  }
+}
+
+/// "was 3rd": where the opponent stood before kick-off, or "now 3rd" for a
+/// match older than every stored table, where only today's rank is known.
+class _MatchStanding extends StatelessWidget {
+  const _MatchStanding(this.standing);
+
+  final OpponentStandingOut standing;
+
+  @override
+  Widget build(BuildContext context) {
+    final gap = fmtPointsGap(standing.pointsGap);
+    final when = standing.atKickoff ? 'Before kick-off' : 'Today (no table from before this match)';
+    return Tooltip(
+      message: '$when: ${fmtStanding(standing)}${gap == null ? '' : ', $gap'}',
+      child: Text('${standing.atKickoff ? 'was' : 'now'} ${fmtOrdinal(standing.rank)}'),
+    );
+  }
+}
+
+/// "Stronger" / "Level" / "Weaker" on points per game; nothing before both
+/// sides have played.
+class _StrengthChip extends StatelessWidget {
+  const _StrengthChip(this.strength);
+
+  final String? strength;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = strengthLabel(strength);
+    if (label == null) return const SizedBox.shrink();
+    final p = Palette.of(context);
+    final (bg, fg) = switch (strength) {
+      'stronger' => (p.warning.container, p.warning.onContainer),
+      'weaker' => (p.success.container, p.success.onContainer),
+      _ => (p.surfaceContainerHighest, p.onSurfaceVariant),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: ShapeDecoration(color: bg, shape: const StadiumBorder()),
+      child: Text(label, style: TextStyle(color: fg)),
+    );
+  }
+}
+
+/// The next fixtures with the opponent's standing, then the league table
+/// as the ÖFB site has it, our row picked out.
+class _Table extends ConsumerWidget {
+  const _Table();
+
+  /// Enough to see past the next weekend.
+  static const _fixtureCount = 3;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(dashboardProvider);
+    final p = Palette.of(context);
+    final table = state.data.league;
+    final error = state.errors.league;
+    final fixtures = state.data.fixtures.take(_fixtureCount).toList();
+
+    if (error != null && table == null) {
+      return Notice('Could not load the league table: $error', tone: NoticeTone.error);
+    }
+    if (table == null) {
+      return const Notice('No league table yet. It is read from the ÖFB site every night at 03:30.');
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (fixtures.isNotEmpty) ...[
+          const SectionTitle('Next matches'),
+          _RowList(children: [for (final fixture in fixtures) _FixtureRow(fixture)]),
+          const SizedBox(height: 24),
+        ],
+        SectionTitle(
+          table.league,
+          action: Text('as of ${fmtDate(table.day)}', style: TypeScale.labelMedium.copyWith(color: p.onSurfaceVariant)),
+        ),
+        _LeagueTable(table),
+      ],
+    );
+  }
+}
+
+class _FixtureRow extends StatelessWidget {
+  const _FixtureRow(this.fixture);
+
+  final FixtureOut fixture;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    final standing = fixture.opponentStanding;
+    final gap = standing == null ? null : fmtPointsGap(standing.pointsGap);
+    return _ListRow(
+      leading: IconDisc(
+        icon: Icons.emoji_events_outlined,
+        background: p.primary.container,
+        color: p.primary.onContainer,
+      ),
+      title: Text(
+        fixtureTitle(fixture),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TypeScale.titleSmall.copyWith(color: p.onSurface),
+      ),
+      trailing: standing == null
+          ? null
+          : Text(
+              fmtStanding(standing),
+              style: TypeScale.bodyMedium.copyWith(color: p.onSurfaceVariant, fontFeatures: TypeScale.tabular),
+            ),
+      subtitle: _meta(
+        context,
+        [
+          Text(fmtKickoff(fixture)),
+          if (standing == null && fixture.art != null) Text(fixture.art!),
+          if (gap != null) Text(gap),
+        ],
+        [if (standing != null) _StrengthChip(standing.strength)],
+      ),
+    );
+  }
+}
+
+/// The table itself. Won / drawn / lost only where there is room for them:
+/// on a phone the team names need the width more.
+class _LeagueTable extends StatelessWidget {
+  const _LeagueTable(this.table);
+
+  final LeagueTableOut table;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Palette.of(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 520;
+        Widget cells(List<(String, double)> values, TextStyle style) => Row(
+          children: [
+            for (final (i, (text, width)) in values.indexed)
+              if (i == 2)
+                Expanded(
+                  child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: style),
+                )
+              else
+                SizedBox(
+                  width: width,
+                  child: Text(
+                    text,
+                    textAlign: i < 2 ? TextAlign.start : TextAlign.end,
+                    style: style.copyWith(fontFeatures: TypeScale.tabular),
+                  ),
+                ),
+          ],
+        );
+
+        List<(String, double)> columns(List<String> v) => [
+          (v[0], 28),
+          (v[1], 30),
+          (v[2], 0),
+          (v[3], 28),
+          if (wide) ...[(v[4], 28), (v[5], 28), (v[6], 28)],
+          (v[7], 52),
+          (v[8], 40),
+          (v[9], 36),
+        ];
+
+        final header = TypeScale.labelMedium.copyWith(color: p.onSurfaceVariant, fontWeight: FontWeight.w600);
+        final body = TypeScale.bodyMedium.copyWith(color: p.onSurface);
+        return Material(
+          color: p.surface,
+          borderRadius: BorderRadius.circular(Shape.lg),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                child: cells(columns(['#', '', 'Team', 'P', 'W', 'D', 'L', 'Goals', '+/-', 'Pts']), header),
+              ),
+              for (final row in table.rows)
+                Container(
+                  color: row.isUs ? p.primary.container : null,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  child: cells(
+                    columns([
+                      '${row.rank}',
+                      fmtRankChange(row.rankChange),
+                      row.team,
+                      '${row.played}',
+                      '${row.won}',
+                      '${row.drawn}',
+                      '${row.lost}',
+                      '${row.goalsFor}:${row.goalsAgainst}',
+                      fmtGoalDifference(row.goalDifference),
+                      '${row.points}',
+                    ]),
+                    row.isUs ? body.copyWith(color: p.primary.onContainer, fontWeight: FontWeight.w700) : body,
+                  ),
+                ),
+              const SizedBox(height: 4),
+            ],
+          ),
+        );
+      },
     );
   }
 }

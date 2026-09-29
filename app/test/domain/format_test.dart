@@ -11,6 +11,7 @@ MatchOut match({String homeAway = 'home', String? result = '4:3', int id = 1}) =
       minutesPlayed: 90,
       oefbGameId: '1',
       opponent: 'Treffling',
+      opponentStanding: null,
       redCard: false,
       result: result,
       sessionId: null,

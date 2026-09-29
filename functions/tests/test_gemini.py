@@ -23,7 +23,7 @@ from api.integrations.google_health import local_tz
 from api.services import drinks, gemini_usage
 from api.services.health import Measurement
 from api.services.sessions import ExerciseSession
-from api.store.rows import CalendarEvent, DailyHealth, MatchPerformance
+from api.store.rows import CalendarEvent, DailyHealth, Fixture, LeagueRow, LeagueTable, MatchPerformance
 
 STATUS = TrainingStatus(
     status="maintaining",
@@ -265,6 +265,62 @@ def test_the_context_reads_its_windows_from_the_store(store, status):
     assert (match["our_score"], match["opponent_score"], match["outcome"]) == (2, 1, "W")
     assert [event["title"] for event in context["upcoming_events"]] == ["Training"]
     assert context["previous_report_summary"] is None
+    assert match["opponent_standing"] is None
+    assert context["league"] is None
+
+
+def test_the_context_carries_the_league_table_and_the_next_opponents(store, status):
+    status(STATUS)
+    today = datetime.now(local_tz()).date()
+    store.put_league_table(
+        LeagueTable(
+            day=today,
+            league="2. Nordwest",
+            rows=[
+                LeagueRow(rank=3, team="Sarleinsbach", played=7, points=15),
+                LeagueRow(rank=8, team="Eidenberg/Geng", is_us=True, played=7, points=11, goal_difference=2),
+                LeagueRow(rank=10, team="Kirchberg/D.", played=7, points=9),
+            ],
+        )
+    )
+    store.put_match(
+        MatchPerformance(
+            id=1,
+            oefb_game_id="g1",
+            match_date=today - timedelta(days=5),
+            opponent="Kirchberg / D.",
+            home_away="home",
+        )
+    )
+    # 18:00 UTC is 20:00 in Vienna.
+    kickoff = datetime.combine(today + timedelta(days=3), datetime.min.time(), tzinfo=UTC).replace(hour=18)
+    store.put_fixtures(
+        [Fixture(oefb_game_id="f1", kickoff=kickoff, opponent="Sarleinsbach", home_away="away")]
+    )
+
+    context = gemini.build_context(store)
+
+    league = context["league"]
+    assert league["league"] == "2. Nordwest"
+    assert league["our_standing"] == {
+        "rank": 8,
+        "played": 7,
+        "points": 11,
+        "points_per_game": 1.57,
+        "goal_difference": 2,
+    }
+    assert [row["team"] for row in league["table"]] == ["Sarleinsbach", "Eidenberg/Geng", "Kirchberg/D."]
+    assert league["table"][1]["is_us"] is True
+    assert "is_us" not in league["table"][0]
+    [fixture] = league["next_fixtures"]
+    assert fixture["kickoff"].startswith(f"{(today + timedelta(days=3)).isoformat()}T20:00")
+    assert fixture["opponent_standing"]["points_gap"] == 4
+    assert fixture["opponent_standing"]["strength"] == "stronger"
+    # The table is only from today, after the match: the current rank stands in.
+    [match] = context["recent_matches"]
+    assert match["opponent_standing"]["opponent_rank"] == 10
+    assert match["opponent_standing"]["strength"] == "level"
+
 
 
 # --- a whole run -----------------------------------------------------------------
@@ -294,7 +350,7 @@ def test_a_run_stores_the_report_with_the_model_that_answered(store, answered):
 
     stored = store.latest_report()
     assert stored.id == report.id
-    assert (stored.trigger, stored.model, stored.prompt_version) == ("manual", "gemini-3.8-flash", "v5")
+    assert (stored.trigger, stored.model, stored.prompt_version) == ("manual", "gemini-3.8-flash", "v6")
     assert stored.summary_md == "## Rested"
     assert stored.insights == {"readiness": "high"}
     assert stored.tokens_used == 1234

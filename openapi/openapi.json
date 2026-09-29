@@ -813,6 +813,65 @@
         "title": "ExerciseSessionOut",
         "type": "object"
       },
+      "FixtureOut": {
+        "properties": {
+          "art": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Art"
+          },
+          "home_away": {
+            "title": "Home Away",
+            "type": "string"
+          },
+          "kickoff": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kickoff"
+          },
+          "oefb_game_id": {
+            "title": "Oefb Game Id",
+            "type": "string"
+          },
+          "opponent": {
+            "title": "Opponent",
+            "type": "string"
+          },
+          "opponent_standing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpponentStandingOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "oefb_game_id",
+          "kickoff",
+          "opponent",
+          "home_away",
+          "art",
+          "opponent_standing"
+        ],
+        "title": "FixtureOut",
+        "type": "object"
+      },
       "GoogleStatusOut": {
         "properties": {
           "calendar": {
@@ -962,6 +1021,115 @@
         "title": "LatestMeasurementsOut",
         "type": "object"
       },
+      "LeagueRowOut": {
+        "properties": {
+          "drawn": {
+            "title": "Drawn",
+            "type": "integer"
+          },
+          "goal_difference": {
+            "title": "Goal Difference",
+            "type": "integer"
+          },
+          "goals_against": {
+            "title": "Goals Against",
+            "type": "integer"
+          },
+          "goals_for": {
+            "title": "Goals For",
+            "type": "integer"
+          },
+          "is_us": {
+            "title": "Is Us",
+            "type": "boolean"
+          },
+          "lost": {
+            "title": "Lost",
+            "type": "integer"
+          },
+          "played": {
+            "title": "Played",
+            "type": "integer"
+          },
+          "points": {
+            "title": "Points",
+            "type": "integer"
+          },
+          "rank": {
+            "title": "Rank",
+            "type": "integer"
+          },
+          "rank_change": {
+            "title": "Rank Change",
+            "type": "integer"
+          },
+          "team": {
+            "title": "Team",
+            "type": "string"
+          },
+          "won": {
+            "title": "Won",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rank",
+          "rank_change",
+          "team",
+          "is_us",
+          "played",
+          "won",
+          "drawn",
+          "lost",
+          "goals_for",
+          "goals_against",
+          "goal_difference",
+          "points"
+        ],
+        "title": "LeagueRowOut",
+        "type": "object"
+      },
+      "LeagueTableOut": {
+        "description": "The overall league table as the nightly scrape last found it.",
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "fetched_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetched At"
+          },
+          "league": {
+            "title": "League",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/LeagueRowOut"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "league",
+          "day",
+          "fetched_at",
+          "rows"
+        ],
+        "title": "LeagueTableOut",
+        "type": "object"
+      },
       "MatchOut": {
         "properties": {
           "goals": {
@@ -999,6 +1167,16 @@
           "opponent": {
             "title": "Opponent",
             "type": "string"
+          },
+          "opponent_standing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpponentStandingOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "red_card": {
             "title": "Red Card",
@@ -1047,7 +1225,8 @@
           "goals",
           "yellow_card",
           "red_card",
-          "session_id"
+          "session_id",
+          "opponent_standing"
         ],
         "title": "MatchOut",
         "type": "object"
@@ -1175,6 +1354,123 @@
           "url"
         ],
         "title": "OAuthLoginOut",
+        "type": "object"
+      },
+      "OpponentStandingOut": {
+        "description": "An opponent's place in the table next to ours\n(api/services/league.py).",
+        "properties": {
+          "at_kickoff": {
+            "title": "At Kickoff",
+            "type": "boolean"
+          },
+          "goal_difference": {
+            "title": "Goal Difference",
+            "type": "integer"
+          },
+          "our_points": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Our Points"
+          },
+          "our_points_per_game": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Our Points Per Game"
+          },
+          "our_rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Our Rank"
+          },
+          "played": {
+            "title": "Played",
+            "type": "integer"
+          },
+          "points": {
+            "title": "Points",
+            "type": "integer"
+          },
+          "points_gap": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Points Gap"
+          },
+          "points_per_game": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Points Per Game"
+          },
+          "rank": {
+            "title": "Rank",
+            "type": "integer"
+          },
+          "rank_change": {
+            "title": "Rank Change",
+            "type": "integer"
+          },
+          "strength": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strength"
+          },
+          "table_day": {
+            "format": "date",
+            "title": "Table Day",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rank",
+          "rank_change",
+          "played",
+          "points",
+          "points_per_game",
+          "goal_difference",
+          "our_rank",
+          "our_points",
+          "our_points_per_game",
+          "points_gap",
+          "strength",
+          "table_day",
+          "at_kickoff"
+        ],
+        "title": "OpponentStandingOut",
         "type": "object"
       },
       "PushDeviceIn": {
@@ -2525,6 +2821,72 @@
         "summary": "Get Health",
         "tags": [
           "meta"
+        ]
+      }
+    },
+    "/league/fixtures": {
+      "get": {
+        "description": "The games still to play, soonest first, each with the opponent's\nstanding in the current table.",
+        "operationId": "listFixtures",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FixtureOut"
+                  },
+                  "title": "Response Listfixtures",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Fixtures",
+        "tags": [
+          "league"
+        ]
+      }
+    },
+    "/league/table": {
+      "get": {
+        "description": "The newest scraped table, or null before the first scrape.",
+        "operationId": "getLeagueTable",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/LeagueTableOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Getleaguetable"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get League Table",
+        "tags": [
+          "league"
         ]
       }
     },

@@ -3,6 +3,7 @@
 //
 
 // ignore_for_file: unused_element
+import 'package:fitness_api/src/model/opponent_standing_out.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 part 'match_out.g.dart';
@@ -29,6 +30,8 @@ class MatchOut {
     required this.oefbGameId,
 
     required this.opponent,
+
+    required this.opponentStanding,
 
     required this.redCard,
 
@@ -62,6 +65,9 @@ class MatchOut {
   @JsonKey(name: r'opponent', required: true, includeIfNull: false)
   final String opponent;
 
+  @JsonKey(name: r'opponent_standing', required: true, includeIfNull: true)
+  final OpponentStandingOut? opponentStanding;
+
   @JsonKey(name: r'red_card', required: true, includeIfNull: false)
   final bool redCard;
 
@@ -88,6 +94,7 @@ class MatchOut {
           other.minutesPlayed == minutesPlayed &&
           other.oefbGameId == oefbGameId &&
           other.opponent == opponent &&
+          other.opponentStanding == opponentStanding &&
           other.redCard == redCard &&
           other.result == result &&
           other.sessionId == sessionId &&
@@ -103,6 +110,7 @@ class MatchOut {
       minutesPlayed.hashCode +
       oefbGameId.hashCode +
       opponent.hashCode +
+      (opponentStanding == null ? 0 : opponentStanding.hashCode) +
       redCard.hashCode +
       (result == null ? 0 : result.hashCode) +
       (sessionId == null ? 0 : sessionId.hashCode) +

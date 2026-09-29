@@ -12,6 +12,8 @@ Layout, and why:
 | `calendar_months` | `YYYY-MM` (local start month) or `undated` | `events.<id>` → one CalendarEvent |
 | `meta/calendar_index` | — | `months.<id>` → the bucket an event is in |
 | `matches` | `<oefb_game_id>` | one MatchPerformance |
+| `league_tables` | `YYYY-MM-DD` (local day of the scrape) | one LeagueTable |
+| `meta/fixtures` | — | `fixtures` → the games still to play, as the last scrape saw them |
 | `hr_traces` | `<session start, UTC ISO>` | one ExerciseHeartRate |
 | `skips` | `<source>~<ref_id>` | one SkippedActivity |
 | `reports` | `<id>` | one AiReport |
@@ -47,6 +49,7 @@ import hashlib
 import json
 import os
 from collections.abc import Iterable, Iterator
+from dataclasses import asdict
 from datetime import UTC, date, datetime
 
 from google.cloud import firestore
@@ -61,6 +64,9 @@ from api.store.rows import (
     DailyHealth,
     DrinkLog,
     ExerciseHeartRate,
+    Fixture,
+    LeagueRow,
+    LeagueTable,
     MatchPerformance,
     OAuthToken,
     PushDevice,
@@ -225,6 +231,15 @@ def _match_from_doc(doc: dict) -> MatchPerformance:
         yellow_card=bool(doc.get("yellow_card")),
         red_card=bool(doc.get("red_card")),
         created_at=_parse_ts(doc.get("created_at")),
+    )
+
+
+def _league_table_from_doc(doc: dict) -> LeagueTable:
+    return LeagueTable(
+        day=_parse_d(doc["day"]),
+        league=doc.get("league", ""),
+        rows=[LeagueRow(**row) for row in doc.get("rows", [])],
+        fetched_at=_parse_ts(doc.get("fetched_at")),
     )
 
 
@@ -554,6 +569,71 @@ class FirestoreStore:
                 "yellow_card": row.yellow_card,
                 "red_card": row.red_card,
                 "created_at": _ts(row.created_at) or datetime.now(UTC),
+            }
+        )
+
+    # --- league table and fixtures ---------------------------------------------
+
+    def put_league_table(self, table: LeagueTable) -> None:
+        """Store the table as found on `table.day`; a second scrape on the
+        same day replaces the first."""
+        self._db.collection("league_tables").document(table.day.isoformat()).set(
+            {
+                "day": table.day.isoformat(),
+                "league": table.league,
+                "rows": [asdict(row) for row in table.rows],
+                "fetched_at": _ts(table.fetched_at) or datetime.now(UTC),
+            }
+        )
+
+    def league_table(self, on_or_before: date | None = None) -> LeagueTable | None:
+        """The newest stored table, or the newest from `on_or_before` or
+        earlier. None when there is none that old."""
+        query = self._db.collection("league_tables")
+        if on_or_before is not None:
+            query = query.where(filter=FieldFilter("day", "<=", on_or_before.isoformat()))
+        query = query.order_by("day", direction=firestore.Query.DESCENDING).limit(1)
+        for snapshot in query.stream():
+            return _league_table_from_doc(snapshot.to_dict())
+        return None
+
+    def league_tables(self) -> list[LeagueTable]:
+        """Every stored table, oldest first — one small document a day, so
+        a season is a few hundred reads at most."""
+        rows = [_league_table_from_doc(s.to_dict()) for s in self._db.collection("league_tables").stream()]
+        rows.sort(key=lambda t: t.day)
+        return rows
+
+    def fixtures(self) -> list[Fixture]:
+        snapshot = self._db.collection("meta").document("fixtures").get()
+        docs = (snapshot.to_dict() or {}).get("fixtures", []) if snapshot.exists else []
+        return [
+            Fixture(
+                oefb_game_id=doc["oefb_game_id"],
+                kickoff=_parse_ts(doc.get("kickoff")),
+                opponent=doc.get("opponent", ""),
+                home_away=doc.get("home_away", "home"),
+                art=doc.get("art"),
+            )
+            for doc in docs
+        ]
+
+    def put_fixtures(self, fixtures: Iterable[Fixture]) -> None:
+        """Replace the stored fixtures with `fixtures` — the schedule as
+        the site has it now, so a game moved or called off drops out."""
+        self._db.collection("meta").document("fixtures").set(
+            {
+                "fixtures": [
+                    {
+                        "oefb_game_id": f.oefb_game_id,
+                        "kickoff": _ts(f.kickoff),
+                        "opponent": f.opponent,
+                        "home_away": f.home_away,
+                        "art": f.art,
+                    }
+                    for f in fixtures
+                ],
+                "updated_at": datetime.now(UTC),
             }
         )
 

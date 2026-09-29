@@ -46,6 +46,75 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('vs Kirchberg / D.'), findsOneWidget);
     expect(find.text('1W 0D 0L'), findsOneWidget);
+    // Where Kirchberg stood before kick-off.
+    expect(find.text('was 10th'), findsOneWidget);
+  });
+
+  testWidgets('Table shows the next opponents and the league, our row included', (tester) async {
+    await pumpDashboard(tester, fakeApi(fixtures()));
+    await tester.tap(find.text('Fitness').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Table'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Next matches'), findsOneWidget);
+    expect(find.text('@ Sarleinsbach'), findsOneWidget);
+    expect(find.text('3rd · 15 pts'), findsOneWidget);
+    expect(find.text('4 pts ahead of us'), findsOneWidget);
+    expect(find.text('Stronger'), findsOneWidget);
+
+    expect(find.text('2. Nordwest'), findsOneWidget);
+    expect(find.text('as of Fri 25 Sept'), findsOneWidget);
+    expect(find.text('Eidenberg/Geng'), findsOneWidget);
+    expect(find.text('Sarleinsbach'), findsOneWidget);
+    expect(find.text('25:6'), findsOneWidget);
+    expect(find.text('+19'), findsOneWidget);
+    expect(find.text('▼2'), findsNWidgets(2));
+  });
+
+  testWidgets('Table before the first scrape says when it will come', (tester) async {
+    await pumpDashboard(tester, fakeApi({...fixtures(), '/league/table': null, '/league/fixtures': <Object>[]}));
+    await tester.tap(find.text('Fitness').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Table'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('No league table yet'), findsOneWidget);
+  });
+
+  testWidgets('an upcoming match in the calendar shows where the opponent stands', (tester) async {
+    // Within the Upcoming week, which counts from the refresh.
+    final kickoff = DateTime.now().toUtc().add(const Duration(days: 2));
+    await pumpDashboard(
+      tester,
+      fakeApi({
+        ...fixtures(),
+        '/calendar/events': [
+          {
+            'id': 'e1',
+            'title': 'Spiel: Sarleinsbach - Eidenberg',
+            'start_ts': kickoff.subtract(const Duration(hours: 1)).toIso8601String(),
+            'end_ts': null,
+            'all_day': false,
+            'location': null,
+          },
+        ],
+        '/league/fixtures': [
+          {
+            ...((fixtures()['/league/fixtures']! as List).single as Map<String, Object?>),
+            'kickoff': kickoff.toIso8601String(),
+          },
+        ],
+      }),
+    );
+    await tester.tap(find.text('Fitness').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Upcoming'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Spiel: Sarleinsbach - Eidenberg'), findsOneWidget);
+    expect(find.text('3rd · 15 pts'), findsOneWidget);
+    expect(find.text('Stronger'), findsOneWidget);
   });
 
   testWidgets('a match opens the session it was, with the ÖFB report beside the watch', (tester) async {

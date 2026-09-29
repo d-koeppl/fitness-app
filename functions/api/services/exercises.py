@@ -49,6 +49,7 @@ from itertools import islice
 
 from api.analysis.training_load import MATCH
 from api.integrations.google_health import EXERCISE_DATA_TYPE
+from api.services.league import Standing
 from api.services.sessions import ExerciseSession, sessions_for_day
 from api.services.training import EstimatedActivity, Schedule, schedule
 from api.store.firestore import FirestoreStore
@@ -65,6 +66,8 @@ class LinkedMatch(MatchPerformance):
     or one older than the first tracked day."""
 
     session_id: str | None = None
+    # Filled in only by GET /matches (services/matches.py).
+    opponent_standing: Standing | None = None
 
 
 def _estimated_id(kind: str, ref_id: str) -> str:
@@ -93,7 +96,7 @@ def match_session_ids(plan: Schedule) -> dict[str, str]:
 
 
 def linked_match(match: MatchPerformance, links: dict[str, str]) -> LinkedMatch:
-    fields = {k: v for k, v in asdict(match).items() if k != "session_id"}
+    fields = {k: v for k, v in asdict(match).items() if k not in ("session_id", "opponent_standing")}
     return LinkedMatch(**fields, session_id=links.get(match.oefb_game_id))
 
 

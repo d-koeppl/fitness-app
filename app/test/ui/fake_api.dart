@@ -27,6 +27,53 @@ Map<String, Object?> _day(String date, {int? rhr, num? hrv, int? sleep, int? ste
   'vo2max': null,
 };
 
+/// An opponent's standing next to ours, as the API sends it.
+Map<String, Object?> standing({
+  int rank = 3,
+  int points = 15,
+  int? gap = 4,
+  String? strength = 'stronger',
+  String tableDay = '2026-09-25',
+  bool atKickoff = true,
+}) => {
+  'rank': rank,
+  'rank_change': 0,
+  'played': 7,
+  'points': points,
+  'points_per_game': points / 7,
+  'goal_difference': 0,
+  'our_rank': 8,
+  'our_points': 11,
+  'our_points_per_game': 1.57,
+  'points_gap': gap,
+  'strength': strength,
+  'table_day': tableDay,
+  'at_kickoff': atKickoff,
+};
+
+Map<String, Object?> _row(
+  int rank,
+  String team,
+  int points, {
+  int gf = 0,
+  int ga = 0,
+  int change = 0,
+  bool us = false,
+}) => {
+  'rank': rank,
+  'rank_change': change,
+  'team': team,
+  'is_us': us,
+  'played': 7,
+  'won': 0,
+  'drawn': 0,
+  'lost': 0,
+  'goals_for': gf,
+  'goals_against': ga,
+  'goal_difference': gf - ga,
+  'points': points,
+};
+
 /// A day like 2026-09-25 on production, trimmed.
 Map<String, Object?> fixtures() => {
   '/matches': [
@@ -43,9 +90,30 @@ Map<String, Object?> fixtures() => {
       'yellow_card': false,
       'red_card': false,
       'session_id': null,
+      'opponent_standing': standing(rank: 10, points: 9, gap: -2, strength: 'level', tableDay: '2026-09-19'),
     },
   ],
   '/matches/missing': null,
+  '/league/table': {
+    'league': '2. Nordwest',
+    'day': '2026-09-25',
+    'fetched_at': '2026-09-25T01:30:00Z',
+    'rows': [
+      _row(1, 'Ottensheim', 17, gf: 25, ga: 6, change: 1),
+      _row(3, 'Sarleinsbach', 15, gf: 29, ga: 11, change: -2),
+      _row(8, 'Eidenberg/Geng', 11, gf: 12, ga: 10, change: -2, us: true),
+    ],
+  },
+  '/league/fixtures': [
+    {
+      'oefb_game_id': '4120032',
+      'kickoff': '2026-10-04T14:00:00Z',
+      'opponent': 'Sarleinsbach',
+      'home_away': 'away',
+      'art': 'Liga',
+      'opponent_standing': standing(),
+    },
+  ],
   '/calendar/events': <Object>[],
   '/oauth/google/status': {
     'calendar': {'connected': true, 'scopes': null, 'access_token_expires_at': null, 'updated_at': null},
