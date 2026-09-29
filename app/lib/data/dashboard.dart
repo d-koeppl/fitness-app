@@ -39,6 +39,8 @@ class DashboardData {
   const DashboardData({
     this.matches = const [],
     this.missingMatch,
+    this.league,
+    this.fixtures = const [],
     this.events = const [],
     this.daily = const [],
     this.lastKnown,
@@ -54,6 +56,14 @@ class DashboardData {
 
   /// Yesterday's fixture with no ÖFB game logged, or null.
   final MissingMatchOut? missingMatch;
+
+  /// The league table as the nightly ÖFB scrape last found it; null before
+  /// the first one.
+  final LeagueTableOut? league;
+
+  /// The games still to play, soonest first, each with the opponent's
+  /// standing.
+  final List<FixtureOut> fixtures;
   final List<CalendarEventOut> events;
 
   /// Oldest first, as the charts and "since yesterday" comparisons read it.
@@ -79,6 +89,8 @@ class DashboardData {
   DashboardData copyWith({AiReportOut? Function()? report, DrinkCounterOut? Function()? drinks}) => DashboardData(
     matches: matches,
     missingMatch: missingMatch,
+    league: league,
+    fixtures: fixtures,
     events: events,
     daily: daily,
     lastKnown: lastKnown,
@@ -95,6 +107,7 @@ class DashboardData {
 class DashboardErrors {
   const DashboardErrors({
     this.matches,
+    this.league,
     this.events,
     this.daily,
     this.exercises,
@@ -104,6 +117,7 @@ class DashboardErrors {
   });
 
   final String? matches;
+  final String? league;
   final String? events;
   final String? daily;
   final String? exercises;
@@ -223,8 +237,8 @@ class DashboardController extends Notifier<DashboardState> {
       }),
     );
 
-    // Two records because Future.wait on a record stops at nine; all ten
-    // requests are already in flight before either is awaited.
+    // Three records because Future.wait on a record stops at nine; all
+    // twelve requests are already in flight before any is awaited.
     final schedule = (
       _settle(api.getMatchesApi().listMatches()),
       _settle(api.getMatchesApi().missingYesterday()),
@@ -241,8 +255,10 @@ class DashboardController extends Notifier<DashboardState> {
       _settle(api.getTrainingApi().trainingStatus()),
       _settle(api.getDrinksApi().getCounter()),
     );
+    final leagueRequests = (_settle(api.getLeagueApi().getLeagueTable()), _settle(api.getLeagueApi().listFixtures()));
     final (matches, missing, events, status, daily) = await schedule.wait;
     final (lastKnown, exercises, report, training, drinks) = await rest.wait;
+    final (league, fixtures) = await leagueRequests.wait;
 
     if (round != _round) return;
     final previous = state.data;
@@ -257,12 +273,16 @@ class DashboardController extends Notifier<DashboardState> {
       report,
       training,
       drinks,
+      league,
+      fixtures,
     ];
 
     state = DashboardState(
       data: DashboardData(
         matches: matches.ok ? matches.value! : previous.matches,
         missingMatch: missing.ok ? missing.value : previous.missingMatch,
+        league: league.ok ? league.value : previous.league,
+        fixtures: fixtures.ok ? fixtures.value! : previous.fixtures,
         events: events.ok ? events.value! : previous.events,
         daily: daily.ok ? ([...daily.value!]..sort((a, b) => a.date.compareTo(b.date))) : previous.daily,
         lastKnown: lastKnown.ok ? lastKnown.value : previous.lastKnown,
@@ -275,6 +295,7 @@ class DashboardController extends Notifier<DashboardState> {
       ),
       errors: DashboardErrors(
         matches: matches.message,
+        league: league.message ?? fixtures.message,
         events: events.message,
         daily: daily.message,
         exercises: exercises.message,

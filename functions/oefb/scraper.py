@@ -2,7 +2,9 @@
 
 Fetches the game list from vereine.oefb.at, checks which completed games
 are not yet stored, scrapes each new game report, and stores a
-MatchPerformance. Carried over from fitness-dashboard with two changes:
+MatchPerformance. Alongside, it keeps the games still to play and the
+league table as it stands (new here; fitness-dashboard read neither).
+Carried over from fitness-dashboard with two changes:
 it writes through the store (ADR-031), and its settings come from
 api/config.py instead of module-level `os.getenv` (the old repo's own rule,
 which this module used to break).
@@ -23,9 +25,16 @@ from datetime import UTC, datetime, timedelta
 import requests
 
 from api.config import settings
+from api.integrations.google_health import local_tz
 from api.store.firestore import FirestoreStore
-from api.store.rows import MatchPerformance
-from oefb.parser import fetch_with_anubis, parse_game_list, parse_game_report
+from api.store.rows import Fixture, LeagueRow, LeagueTable, MatchPerformance
+from oefb.parser import (
+    fetch_with_anubis,
+    parse_fixtures,
+    parse_game_list,
+    parse_game_report,
+    parse_league_table,
+)
 
 logger = logging.getLogger("oefb.scraper")
 
@@ -39,6 +48,10 @@ def _team_fragment() -> str:
 
 def _game_list_url() -> str:
     return f"{settings.oefb_team_url}/Mannschaften/Saison-{settings.oefb_season}/KM/Spiele"
+
+
+def _table_url() -> str:
+    return f"{settings.oefb_team_url}/Mannschaften/Saison-{settings.oefb_season}/KM/Tabellen"
 
 
 def _make_session() -> requests.Session:
@@ -111,6 +124,49 @@ def _persist_performance(store: FirestoreStore, perf: dict, game_id: str) -> Non
     )
 
 
+def store_fixtures(store: FirestoreStore, game_list_html: str) -> int:
+    """Replace the stored fixtures with the games the list still has to
+    play. Returns how many there are."""
+    fixtures = [
+        Fixture(
+            oefb_game_id=f["game_id"],
+            kickoff=datetime.fromtimestamp(f["kickoff_ms"] / 1000, tz=UTC) if f["kickoff_ms"] else None,
+            opponent=f["opponent"],
+            home_away=f["home_away"],
+            art=f["art"],
+        )
+        for f in parse_fixtures(game_list_html, _team_fragment())
+    ]
+    store.put_fixtures(fixtures)
+    return len(fixtures)
+
+
+def store_league_table(store: FirestoreStore, session: requests.Session, now: datetime | None = None) -> bool:
+    """Fetch the league table and keep it as today's. Returns whether one
+    was stored. A failure here is logged and costs only the table: the
+    match scrape it runs beside does not depend on it."""
+    try:
+        resp = fetch_with_anubis(session, _table_url(), base_url=OEFB_BASE_URL)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Could not fetch the league table: %s", exc)
+        return False
+    table = parse_league_table(resp.text, _team_fragment()) if resp.status_code == 200 else None
+    if table is None:
+        logger.warning("No league table on %s (HTTP %d)", _table_url(), resp.status_code)
+        return False
+    now = now or datetime.now(UTC)
+    store.put_league_table(
+        LeagueTable(
+            day=now.astimezone(local_tz()).date(),
+            league=table["league"],
+            rows=[LeagueRow(**row) for row in table["rows"]],
+            fetched_at=now,
+        )
+    )
+    logger.info("Stored the %s table (%d teams)", table["league"], len(table["rows"]))
+    return True
+
+
 def run(
     store: FirestoreStore, days: int | None = 3, game_id: str | None = None, scrape_all: bool = False
 ) -> int:
@@ -135,6 +191,8 @@ def run(
         logger.error("Could not fetch game list: %s", exc)
         return 0
     all_games = parse_game_list(resp.text)
+    logger.info("%d game(s) still to play", store_fixtures(store, resp.text))
+    store_league_table(store, session)
 
     if game_id:
         if game_id in existing_ids:

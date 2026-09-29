@@ -64,6 +64,14 @@ SYSTEM_PREAMBLE = (
     "decision (whether to train or rest), write a short list, not a chart."
 )
 
+LEAGUE_HEADING = (
+    "League table and the next fixtures (from the ÖFB site, as of `table_day`). "
+    "Each fixture's and each match's `opponent_standing` puts the opponent next "
+    "to us: `points_gap` is their points minus ours, `strength` compares points "
+    "per game (stronger, level, weaker). Use it to plan load and recovery around "
+    "the hard games and to read results in context; don't offer tactics:\n"
+)
+
 NO_DATA = "No data selected — the user hasn't included any of their data in this chat."
 
 # The heading over the pinned workouts (ADR-021). It has to do three things
@@ -223,6 +231,11 @@ def build_system_prompt(
 
     if include.matches and context["recent_matches"]:
         parts.append("Match performance:\n" + json.dumps(context["recent_matches"], indent=2))
+
+    # Under the matches toggle: the table is what the matches are played in,
+    # and a question about the next opponent is a question about matches.
+    if include.matches and context.get("league"):
+        parts.append(LEAGUE_HEADING + json.dumps(context["league"], indent=2))
 
     if include.events and context["upcoming_events"]:
         parts.append(

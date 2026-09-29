@@ -147,3 +147,46 @@ class DrinkLog:
     logged_at: datetime
     counted_report_id: int | None = None
     drank_on: date | None = None
+
+
+@dataclass
+class LeagueRow:
+    """One line of the league table, as the ÖFB Tabellen page has it."""
+
+    rank: int
+    team: str
+    is_us: bool = False
+    rank_change: int = 0  # places gained (+) or lost (−) in the last round
+    played: int = 0
+    won: int = 0
+    drawn: int = 0
+    lost: int = 0
+    goals_for: int = 0
+    goals_against: int = 0
+    goal_difference: int = 0
+    points: int = 0
+
+
+@dataclass
+class LeagueTable:
+    """The overall league table as the nightly scrape found it on `day`.
+
+    New in this repo: fitness-dashboard never read the table. One is kept
+    per day rather than only the latest, so a match can be shown against
+    the table as it stood before kick-off."""
+
+    day: date
+    league: str
+    rows: list[LeagueRow] = field(default_factory=list)
+    fetched_at: datetime | None = None
+
+
+@dataclass
+class Fixture:
+    """A game on the ÖFB schedule that has not been played yet."""
+
+    oefb_game_id: str
+    kickoff: datetime | None
+    opponent: str
+    home_away: str  # "home" | "away"
+    art: str | None = None  # "Liga", "Testspiel", "Cup", …

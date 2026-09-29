@@ -1,8 +1,8 @@
 """api/analysis/gemini.py — the Gemini report pipeline.
 
 On trigger: assemble a compact context window (recent daily health,
-upcoming calendar events, the latest matches and the previous report for
-continuity), send it to Gemini with a versioned prompt, parse a structured
+upcoming calendar events, the latest matches, the league table and the
+previous report for continuity), send it to Gemini with a versioned prompt, parse a structured
 JSON response, and store the report.
 
 Ported from fitness-dashboard with the prompt unchanged, so a report
@@ -27,13 +27,14 @@ from api.integrations.google_health import local_tz
 from api.services import drinks, gemini_usage
 from api.services.exercises import sessions_since
 from api.services.health import Measurement, latest_measurements
+from api.services.league import Standing, match_standings, our_row, points_per_game, upcoming_fixtures
 from api.services.matches import newest_first
 from api.services.push import notify_report_ready
 from api.services.reports import report_exists_today
 from api.services.sessions import ExerciseSession
 from api.services.training import get_training_status
 from api.store.firestore import FirestoreStore
-from api.store.rows import AiReport, CalendarEvent, DailyHealth, MatchPerformance
+from api.store.rows import AiReport, CalendarEvent, DailyHealth, LeagueTable, MatchPerformance
 
 logger = logging.getLogger("api.analysis.gemini")
 
@@ -51,11 +52,16 @@ GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model
 # model as missing data (ADR-018).
 # v5 (2026-09): the context gained alcohol — the user's own beer log, and the
 # only number here nothing measured for them (ADR-019).
-PROMPT_VERSION = "v5"
+# v6 (2026-09): the context gained league — the table, and each match and
+# fixture with the opponent's standing next to ours.
+PROMPT_VERSION = "v6"
 
 CONTEXT_HEALTH_DAYS_BACK = 14
 CONTEXT_CALENDAR_DAYS_AHEAD = 14
 CONTEXT_MATCH_LIMIT = 5
+# The next few fixtures, with the opponent's standing. Three reaches past the
+# next weekend without turning the league section into the season schedule.
+CONTEXT_FIXTURE_LIMIT = 3
 # Shorter than the health window on purpose: sessions are the busiest
 # part of the context (one entry per workout, each with an open bag of
 # metrics), and a fortnight of them would crowd out the summary rows.
@@ -122,7 +128,75 @@ def _match_outcome(result: str | None, home_away: str) -> tuple[int | None, int 
     return our, their, outcome
 
 
-def _serialize_matches(rows: list[MatchPerformance]) -> list[dict]:
+def _serialize_standing(standing: Standing | None) -> dict | None:
+    """The opponent's row next to ours. `strength` is pre-computed from the
+    points-per-game difference (api/services/league.py), so the model reads
+    one word instead of re-deriving it from ranks."""
+    if standing is None:
+        return None
+    return {
+        "opponent_rank": standing.rank,
+        "opponent_points": standing.points,
+        "opponent_played": standing.played,
+        "opponent_points_per_game": standing.points_per_game,
+        "our_rank": standing.our_rank,
+        "our_points": standing.our_points,
+        "our_points_per_game": standing.our_points_per_game,
+        "points_gap": standing.points_gap,
+        "strength": standing.strength,
+        "table_day": standing.table_day.isoformat(),
+    }
+
+
+def _serialize_league(table: LeagueTable | None, store: FirestoreStore) -> dict | None:
+    """The league table and the next fixtures. None before the first scrape
+    has stored a table."""
+    if table is None:
+        return None
+    ours = our_row(table)
+    fixtures = upcoming_fixtures(store, datetime.now(UTC), table)[:CONTEXT_FIXTURE_LIMIT]
+    return {
+        "league": table.league,
+        "table_day": table.day.isoformat(),
+        "our_standing": {
+            "rank": ours.rank,
+            "played": ours.played,
+            "points": ours.points,
+            "points_per_game": points_per_game(ours),
+            "goal_difference": ours.goal_difference,
+        }
+        if ours
+        else None,
+        "table": [
+            {
+                "rank": row.rank,
+                "team": row.team,
+                "played": row.played,
+                "points": row.points,
+                "goal_difference": row.goal_difference,
+                **({"is_us": True} if row.is_us else {}),
+            }
+            for row in table.rows
+        ],
+        "next_fixtures": [
+            {
+                "kickoff": f.kickoff.astimezone(local_tz()).isoformat() if f.kickoff else None,
+                "opponent": f.opponent,
+                "home_away": f.home_away,
+                "competition": f.art,
+                "opponent_standing": _serialize_standing(f.opponent_standing),
+            }
+            for f in fixtures
+        ],
+    }
+
+
+def _serialize_matches(
+    rows: list[MatchPerformance], standings: dict[str, Standing] | None = None
+) -> list[dict]:
+    """`standings` puts the opponent's place in the table before kick-off
+    on each match that has one."""
+    standings = standings or {}
     serialized = []
     for row in rows:
         our_score, opponent_score, outcome = _match_outcome(row.result, row.home_away)
@@ -138,6 +212,7 @@ def _serialize_matches(rows: list[MatchPerformance]) -> list[dict]:
                 "goals": row.goals,
                 "yellow_card": row.yellow_card,
                 "red_card": row.red_card,
+                "opponent_standing": _serialize_standing(standings.get(row.oefb_game_id)),
             }
         )
     return serialized
@@ -298,7 +373,8 @@ def build_context(store: FirestoreStore, *, lookback_days: int | None = None) ->
         "recent_exercises": _serialize_exercises(exercise_sessions),
         "alcohol": _serialize_alcohol(store, today, health_days),
         "upcoming_events": _serialize_events(event_rows),
-        "recent_matches": _serialize_matches(match_rows),
+        "recent_matches": _serialize_matches(match_rows, match_standings(store, match_rows)),
+        "league": _serialize_league(store.league_table(), store),
         "previous_report_summary": previous_report.summary_md if previous_report else None,
     }
 
@@ -339,7 +415,15 @@ last report claimed them — usually last night — and `daily_counts` is the \
 recent history by day. Read it as evidence about sleep quality, resting HR \
 and HRV rather than as a moral question, and only bring it up when there is \
 something to say: a night that explains a metric, or a run of days worth \
-naming. A count of 0 is not worth a sentence.
+naming. A count of 0 is not worth a sentence. `league`, when present, is \
+the league table as of `table_day`, with `next_fixtures`; a fixture's and \
+a recent match's `opponent_standing` puts the opponent next to us \
+(`points_gap` is theirs minus ours, `strength` compares points per game: \
+stronger, level or weaker). Use it for the physical side only: a stronger \
+opponent usually means more defending and more high-intensity running, so \
+say how to arrive fresh for that one; read a result in its light (a loss \
+to a stronger side is not a fitness warning on its own). No tactics, no \
+predictions of the score.
 
 Data:
 {context_json}

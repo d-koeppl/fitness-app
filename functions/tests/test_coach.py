@@ -417,3 +417,19 @@ def test_the_coach_is_asked_for_chart_blocks_not_mermaid():
     assert "```chart" in text
     assert '"series"' in text
     assert "mermaid" not in text.lower()
+
+
+def test_the_league_table_rides_with_the_matches(monkeypatch):
+    league = {
+        "league": "2. Nordwest",
+        "table_day": "2026-09-29",
+        "next_fixtures": [{"opponent": "Sarleinsbach", "opponent_standing": {"strength": "stronger"}}],
+    }
+    monkeypatch.setattr(coach, "build_context", lambda _db, lookback_days=None: {**CONTEXT, "league": league})
+    text = prompt()
+    assert coach.LEAGUE_HEADING in text
+    assert "Sarleinsbach" in text
+    assert "Sarleinsbach" not in prompt(matches=False)
+    # No table scraped yet: no section, and no empty heading.
+    monkeypatch.setattr(coach, "build_context", lambda _db, lookback_days=None: {**CONTEXT, "league": None})
+    assert coach.LEAGUE_HEADING not in prompt()

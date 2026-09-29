@@ -23,6 +23,7 @@ from datetime import date, datetime, time, timedelta
 from api.config import settings
 from api.integrations.google_health import local_tz
 from api.services.exercises import LinkedMatch, linked_match, match_session_ids
+from api.services.league import match_standings
 from api.services.training import schedule
 from api.store.firestore import FirestoreStore
 from api.store.like import ilike
@@ -40,9 +41,15 @@ def newest_first(store: FirestoreStore) -> list[MatchPerformance]:
 
 def newest_first_with_sessions(store: FirestoreStore) -> list[LinkedMatch]:
     """`newest_first`, each match carrying the id of the session it was —
-    what GET /matches serves, so a tap on a match opens its workout."""
+    what GET /matches serves, so a tap on a match opens its workout — and
+    where its opponent stood in the table."""
     links = match_session_ids(schedule(store))
-    return [linked_match(match, links) for match in newest_first(store)]
+    matches = newest_first(store)
+    standings = match_standings(store, matches)
+    linked = [linked_match(match, links) for match in matches]
+    for match in linked:
+        match.opponent_standing = standings.get(match.oefb_game_id)
+    return linked
 
 
 @dataclass(frozen=True)

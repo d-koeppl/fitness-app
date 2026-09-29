@@ -406,3 +406,108 @@ def parse_game_report(
         "yellow_card": yellow_card,
         "red_card": red_card,
     }
+
+
+# ---------------------------------------------------------------------------
+# Fixtures and league table
+# ---------------------------------------------------------------------------
+
+def team_key(name: str) -> str:
+    """A team name reduced to what the site's pages agree on.
+
+    The table spells a team "Kirchberg/D." where the game list and the game
+    report say "Kirchberg / D.", so names are compared on this key: case
+    folded, runs of whitespace collapsed, no spaces around a slash."""
+    collapsed = " ".join(name.split())
+    return re.sub(r"\s*/\s*", "/", collapsed).casefold()
+
+
+def parse_fixtures(html: str, our_team_url_fragment: str) -> list[dict]:
+    """The games on the Spiele page that are still to be played.
+
+    Same SPIELPLAN_MANNSCHAFT block as `parse_game_list`, the other half of
+    it: not yet completed, not called off. Returns, in the page's order:
+    {
+        "game_id":    "4120031",
+        "kickoff_ms": 1791122400000,     # Unix millisecond timestamp
+        "opponent":   "Urfahr",
+        "home_away":  "home" | "away",
+        "art":        "Liga",            # "Testspiel", "Cup", …
+    }
+    """
+    for data in _extract_preloads(html).values():
+        if not isinstance(data, dict):
+            continue
+        if data.get("type") != "SPIELPLAN_MANNSCHAFT" or "spiele" not in data:
+            continue
+
+        fixtures: list[dict] = []
+        for spiel in data["spiele"]:
+            if spiel.get("abgeschlossen") or spiel.get("abgesagt"):
+                continue
+            m = re.search(r":s=(\d+)", spiel.get("spielUrl", ""))
+            if not m:
+                continue
+            home = our_team_url_fragment in (spiel.get("heimUrl") or "")
+            fixtures.append(
+                {
+                    "game_id": m.group(1),
+                    "kickoff_ms": spiel.get("datum"),
+                    "opponent": spiel.get("gastName" if home else "heimName") or "",
+                    "home_away": "home" if home else "away",
+                    "art": spiel.get("art"),
+                }
+            )
+        return fixtures
+
+    logger.warning("SPIELPLAN_MANNSCHAFT block not found in game list HTML")
+    return []
+
+
+def parse_league_table(html: str, our_team_url_fragment: str) -> dict | None:
+    """The overall ("Gesamt") table from the Tabellen page, or None when the
+    page has none.
+
+    The page carries five tables (overall, home, away, autumn, spring) under
+    `tabellen`; only the overall one is read. Our own row is recognised by
+    its club page URL, not its name, which the table spells differently
+    from the game list. Returns:
+    {
+        "league": "2. Nordwest",
+        "rows": [{"rank": 1, "rank_change": 1, "team": "Ottensheim",
+                  "is_us": False, "played": 7, "won": 5, "drawn": 2,
+                  "lost": 0, "goals_for": 25, "goals_against": 6,
+                  "goal_difference": 19, "points": 17}, ...],
+    }
+    """
+    for data in _extract_preloads(html).values():
+        if not isinstance(data, dict) or data.get("type") != "TABELLE":
+            continue
+        tables = data.get("tabellen")
+        overall = tables.get("NORMAL") if isinstance(tables, dict) else None
+        if not isinstance(overall, dict):
+            continue
+
+        rows = [
+            {
+                "rank": entry["rang"],
+                "rank_change": entry.get("tendenz") or 0,
+                "team": entry["mannschaftBezeichnung"],
+                "is_us": our_team_url_fragment in (entry.get("homepageUrl") or ""),
+                "played": entry.get("spiele", 0),
+                "won": entry.get("siege", 0),
+                "drawn": entry.get("unentschieden", 0),
+                "lost": entry.get("niederlagen", 0),
+                "goals_for": entry.get("toreErzielt", 0),
+                "goals_against": entry.get("toreErhalten", 0),
+                "goal_difference": entry.get("tordifferenz", 0),
+                "points": entry.get("punkte", 0),
+            }
+            for entry in overall.get("eintraege") or []
+        ]
+        if not rows:
+            continue
+        return {"league": overall.get("bewerbName") or data.get("bezeichnung") or "", "rows": rows}
+
+    logger.warning("TABELLE block not found in table HTML")
+    return None

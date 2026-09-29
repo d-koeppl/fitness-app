@@ -4,6 +4,8 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict
 
+from api.schemas.league import OpponentStandingOut
+
 
 class MatchOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -25,6 +27,11 @@ class MatchOut(BaseModel):
     # older than the first tracked day. Open it with
     # GET /health-data/exercises/{session_id}.
     session_id: str | None
+    # Where the opponent stood in the league table before kick-off (or
+    # stands now, `at_kickoff` false, for a match older than every stored
+    # table). Null for a team outside our league, and on a match nested in
+    # an exercise session, which does not carry it.
+    opponent_standing: OpponentStandingOut | None
 
 
 class MissingMatchOut(BaseModel):

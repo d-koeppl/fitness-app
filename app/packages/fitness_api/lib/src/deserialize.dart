@@ -12,12 +12,15 @@ import 'package:fitness_api/src/model/drink_count_in.dart';
 import 'package:fitness_api/src/model/drink_counter_out.dart';
 import 'package:fitness_api/src/model/drink_day_out.dart';
 import 'package:fitness_api/src/model/exercise_session_out.dart';
+import 'package:fitness_api/src/model/fixture_out.dart';
 import 'package:fitness_api/src/model/google_status_out.dart';
 import 'package:fitness_api/src/model/http_validation_error.dart';
 import 'package:fitness_api/src/model/health.dart';
 import 'package:fitness_api/src/model/heart_rate_zone_out.dart';
 import 'package:fitness_api/src/model/include_flags.dart';
 import 'package:fitness_api/src/model/latest_measurements_out.dart';
+import 'package:fitness_api/src/model/league_row_out.dart';
+import 'package:fitness_api/src/model/league_table_out.dart';
 import 'package:fitness_api/src/model/match_out.dart';
 import 'package:fitness_api/src/model/me.dart';
 import 'package:fitness_api/src/model/measurement_out.dart';
@@ -25,6 +28,7 @@ import 'package:fitness_api/src/model/missing_match_out.dart';
 import 'package:fitness_api/src/model/model_usage_out.dart';
 import 'package:fitness_api/src/model/o_auth_callback_out.dart';
 import 'package:fitness_api/src/model/o_auth_login_out.dart';
+import 'package:fitness_api/src/model/opponent_standing_out.dart';
 import 'package:fitness_api/src/model/push_device_in.dart';
 import 'package:fitness_api/src/model/push_device_out.dart';
 import 'package:fitness_api/src/model/push_token_in.dart';
@@ -97,6 +101,8 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'ExerciseSessionOut':
       return ExerciseSessionOut.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'FixtureOut':
+      return FixtureOut.fromJson(value as Map<String, dynamic>) as ReturnType;
     case 'GoogleStatusOut':
       return GoogleStatusOut.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -112,6 +118,11 @@ ReturnType deserialize<ReturnType, BaseType>(
       return IncludeFlags.fromJson(value as Map<String, dynamic>) as ReturnType;
     case 'LatestMeasurementsOut':
       return LatestMeasurementsOut.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'LeagueRowOut':
+      return LeagueRowOut.fromJson(value as Map<String, dynamic>) as ReturnType;
+    case 'LeagueTableOut':
+      return LeagueTableOut.fromJson(value as Map<String, dynamic>)
           as ReturnType;
     case 'MatchOut':
       return MatchOut.fromJson(value as Map<String, dynamic>) as ReturnType;
@@ -131,6 +142,9 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'OAuthLoginOut':
       return OAuthLoginOut.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'OpponentStandingOut':
+      return OpponentStandingOut.fromJson(value as Map<String, dynamic>)
           as ReturnType;
     case 'PushDeviceIn':
       return PushDeviceIn.fromJson(value as Map<String, dynamic>) as ReturnType;

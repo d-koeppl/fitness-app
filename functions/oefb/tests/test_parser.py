@@ -17,7 +17,15 @@ from datetime import UTC, date, datetime
 
 import pytest
 
-from oefb.parser import _extract_preloads, _parse_minute, parse_game_list, parse_game_report
+from oefb.parser import (
+    _extract_preloads,
+    _parse_minute,
+    parse_fixtures,
+    parse_game_list,
+    parse_game_report,
+    parse_league_table,
+    team_key,
+)
 
 PLAYER = "Daniel Köppl"
 OUR_TEAM = "UnionEidenbergGeng"
@@ -251,3 +259,105 @@ def test_player_not_in_the_squad_returns_none():
 
 def test_page_without_a_lineup_block_returns_none():
     assert parse_game_report(page([{"heimErgebnis": 1, "gastErgebnis": 0}]), PLAYER, OUR_TEAM) is None
+
+
+# --- team_key ---------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("table", "game_list"),
+    [
+        ("Kirchberg/D.", "Kirchberg / D."),
+        ("Eidenberg/Geng", "Eidenberg / Geng"),
+        ("SPG Hofkirchen/Putzleinsdorf 1b", "SPG Hofkirchen / Putzleinsdorf 1b"),
+        ("Herzogsdorf - Neußerling", "Herzogsdorf  -  Neußerling"),
+    ],
+)
+def test_team_key_joins_the_tables_spelling_to_the_game_lists(table, game_list):
+    assert team_key(table) == team_key(game_list)
+
+
+def test_team_key_keeps_different_teams_apart():
+    assert team_key("St. Martin i.M 1b") != team_key("St. Martin i.M")
+
+
+# --- parse_fixtures -----------------------------------------------------------
+
+
+OURS = f"https://vereine.oefb.at/{OUR_TEAM}/News/"
+
+
+def test_parse_fixtures_keeps_only_games_still_to_play():
+    html = page(
+        [
+            spielplan(
+                spiel(game_id="1", heimUrl=OURS),
+                spiel(game_id="2", abgeschlossen=False, heimUrl=OURS, gastName="Urfahr", datum=1791122400000),
+                spiel(game_id="3", abgeschlossen=False, heimName="Kleinzell", gastName="Eidenberg / Geng"),
+                spiel(game_id="4", abgeschlossen=False, abgesagt=True),
+            )
+        ]
+    )
+    fixtures = parse_fixtures(html, OUR_TEAM)
+    assert [(f["game_id"], f["opponent"], f["home_away"]) for f in fixtures] == [
+        ("2", "Urfahr", "home"),
+        ("3", "Kleinzell", "away"),
+    ]
+    assert fixtures[0]["kickoff_ms"] == 1791122400000
+    assert fixtures[0]["art"] == "Meisterschaft"
+
+
+def test_parse_fixtures_without_the_block():
+    assert parse_fixtures(page({"type": "OTHER"}), OUR_TEAM) == []
+
+
+# --- parse_league_table ---------------------------------------------------------
+
+
+def eintrag(rang: int, name: str, url: str, punkte: int, tendenz: int = 0) -> dict:
+    return {
+        "rang": rang,
+        "tendenz": tendenz,
+        "mannschaftBezeichnung": name,
+        "homepageUrl": url,
+        "spiele": 7,
+        "siege": 5,
+        "unentschieden": 2,
+        "niederlagen": 0,
+        "toreErzielt": 25,
+        "toreErhalten": 6,
+        "tordifferenz": 19,
+        "punkte": punkte,
+    }
+
+
+def table_block(**tabellen: dict) -> dict:
+    return {"type": "TABELLE", "bezeichnung": "2. Nordwest", "tabellen": tabellen}
+
+
+def test_parse_league_table_reads_the_overall_table():
+    overall = {
+        "bewerbName": "2. Nordwest",
+        "eintraege": [
+            eintrag(1, "Ottensheim", "https://vereine.oefb.at/TSVOttensheim/News/", 17, tendenz=1),
+            eintrag(8, "Eidenberg/Geng", f"https://vereine.oefb.at/{OUR_TEAM}/News/", 11, tendenz=-2),
+        ],
+    }
+    home_only = {"bewerbName": "2. Nordwest", "eintraege": [eintrag(1, "Kleinzell", "", 12)]}
+    table = parse_league_table(page(table_block(HEIM=home_only, NORMAL=overall)), OUR_TEAM)
+
+    assert table["league"] == "2. Nordwest"
+    assert [(r["rank"], r["team"], r["is_us"], r["rank_change"]) for r in table["rows"]] == [
+        (1, "Ottensheim", False, 1),
+        (8, "Eidenberg/Geng", True, -2),
+    ]
+    first = table["rows"][0]
+    assert (first["played"], first["won"], first["drawn"], first["lost"]) == (7, 5, 2, 0)
+    goals = (first["goals_for"], first["goals_against"], first["goal_difference"])
+    assert goals == (25, 6, 19)
+    assert first["points"] == 17
+
+
+def test_parse_league_table_without_one():
+    assert parse_league_table(page({"type": "OTHER"}), OUR_TEAM) is None
+    assert parse_league_table(page(table_block(NORMAL={"eintraege": []})), OUR_TEAM) is None
