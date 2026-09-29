@@ -42,7 +42,7 @@ void main() {
     expect(find.text('-30% of fitness'), findsOneWidget);
     expect(find.text('54/100'), findsOneWidget);
 
-    await tester.tap(find.text('Matches'));
+    await tester.tap(find.text('Football'));
     await tester.pumpAndSettle();
     expect(find.text('vs Kirchberg / D.'), findsOneWidget);
     expect(find.text('1W 0D 0L'), findsOneWidget);
@@ -50,33 +50,56 @@ void main() {
     expect(find.text('was 10th'), findsOneWidget);
   });
 
-  testWidgets('Table shows the next opponents and the league, our row included', (tester) async {
-    await pumpDashboard(tester, fakeApi(fixtures()));
+  testWidgets('Football shows three matches until expanded, then the league table', (tester) async {
+    final first = (fixtures()['/matches']! as List).single as Map<String, Object?>;
+    final matches = [
+      for (final (i, opponent) in ['Urfahr', 'Reichenau', 'Kollerschlag', 'Kirchberg / D.'].indexed)
+        {...first, 'id': i + 1, 'oefb_game_id': '${i + 1}', 'opponent': opponent},
+    ];
+    await pumpDashboard(tester, fakeApi({...fixtures(), '/matches': matches}));
     await tester.tap(find.text('Fitness').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Table'));
+    await tester.tap(find.text('Football'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Next matches'), findsOneWidget);
-    expect(find.text('@ Sarleinsbach'), findsOneWidget);
-    expect(find.text('3rd · 15 pts'), findsOneWidget);
-    expect(find.text('4 pts ahead of us'), findsOneWidget);
-    expect(find.text('Stronger'), findsOneWidget);
+    expect(find.text('vs Urfahr'), findsOneWidget);
+    expect(find.text('vs Kollerschlag'), findsOneWidget);
+    expect(find.text('vs Kirchberg / D.'), findsNothing);
+    // The badge counts every match, shown or not.
+    expect(find.text('4W 0D 0L'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Show all 4 matches'));
+    await tester.tap(find.text('Show all 4 matches'));
+    await tester.pumpAndSettle();
+    expect(find.text('vs Kirchberg / D.'), findsOneWidget);
+    expect(find.text('Show fewer'), findsOneWidget);
+
+    // The table, below the matches; no list of fixtures here any more.
+    expect(find.text('Next matches'), findsNothing);
     expect(find.text('2. Nordwest'), findsOneWidget);
     expect(find.text('as of Fri 25 Sept'), findsOneWidget);
     expect(find.text('Eidenberg/Geng'), findsOneWidget);
-    expect(find.text('Sarleinsbach'), findsOneWidget);
     expect(find.text('25:6'), findsOneWidget);
     expect(find.text('+19'), findsOneWidget);
     expect(find.text('▼2'), findsNWidgets(2));
   });
 
-  testWidgets('Table before the first scrape says when it will come', (tester) async {
+  testWidgets('Football with one match has nothing to expand', (tester) async {
+    await pumpDashboard(tester, fakeApi(fixtures()));
+    await tester.tap(find.text('Fitness').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Football'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('vs Kirchberg / D.'), findsOneWidget);
+    expect(find.textContaining('Show all'), findsNothing);
+  });
+
+  testWidgets('Football before the first table scrape says when it will come', (tester) async {
     await pumpDashboard(tester, fakeApi({...fixtures(), '/league/table': null, '/league/fixtures': <Object>[]}));
     await tester.tap(find.text('Fitness').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Table'));
+    await tester.tap(find.text('Football'));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('No league table yet'), findsOneWidget);
@@ -149,7 +172,7 @@ void main() {
     );
     await tester.tap(find.text('Fitness').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Matches'));
+    await tester.tap(find.text('Football'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('vs Kirchberg / D.'));

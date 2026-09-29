@@ -5,8 +5,6 @@
 
 import 'package:fitness_api/fitness_api.dart';
 
-import 'format.dart';
-
 /// "1st", "2nd", "3rd", "11th", "22nd" — en-GB ordinals.
 String fmtOrdinal(int n) {
   final lastTwo = n % 100;
@@ -61,9 +59,3 @@ FixtureOut? fixtureForEvent(CalendarEventOut event, List<FixtureOut> fixtures) {
   }
   return null;
 }
-
-/// "vs Urfahr", "@ Kleinzell" — as matchTitle writes a played match.
-String fixtureTitle(FixtureOut fixture) => '${fixture.homeAway == 'home' ? 'vs' : '@'} ${fixture.opponent}';
-
-/// "Sat 03 Oct, 16:00" — a fixture's kick-off.
-String fmtKickoff(FixtureOut fixture) => fixture.kickoff == null ? 'TBD' : fmtDateTime(fixture.kickoff!);

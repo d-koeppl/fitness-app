@@ -32,10 +32,11 @@ list and the game report "Kirchberg / D.".
   be apart in games played. More than 0.5 points per game above us is
   "stronger", as far below "weaker", between "level"
   (`STRENGTH_MARGIN_PPG`). No label until both sides have played.
-- `GET /league/table` and `GET /league/fixtures` serve the app's new
-  Fitness → Table segment; `MatchOut.opponent_standing` feeds the match
-  rows; a calendar event within three hours of a fixture's kick-off shows
-  the opponent's standing in Upcoming.
+- `GET /league/table` serves the app's Fitness → Football segment: the
+  three newest matches (expandable to all), then the table.
+  `MatchOut.opponent_standing` feeds the match rows. `GET /league/fixtures`
+  feeds Upcoming, where a calendar event within three hours of a
+  fixture's kick-off shows the opponent's standing.
 - The report context (prompt v6) and the coach, under the matches toggle,
   get the table, the next three fixtures and each recent match's
   standing. The prompt limits them to the physical side (arriving fresh

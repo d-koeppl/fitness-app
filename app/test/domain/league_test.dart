@@ -95,10 +95,4 @@ void main() {
       expect(fixtureForEvent(event(null), fixtures), isNull);
     });
   });
-
-  test('a fixture reads like a played match', () {
-    expect(fixtureTitle(fixture(null)), 'vs Urfahr');
-    expect(fixtureTitle(fixture(null, homeAway: 'away')), '@ Urfahr');
-    expect(fmtKickoff(fixture(null)), 'TBD');
-  });
 }
