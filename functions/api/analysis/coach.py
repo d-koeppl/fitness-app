@@ -254,9 +254,6 @@ def build_system_prompt(
             + json.dumps(context["alcohol"], indent=2)
         )
 
-    if include.report and context["previous_report_summary"]:
-        parts.append("Latest AI readiness report:\n" + context["previous_report_summary"])
-
     body = "\n\n".join(parts) if parts else NO_DATA
     return f"{SYSTEM_PREAMBLE}\n\nToday is {context['today']}.\n\n{body}"
 

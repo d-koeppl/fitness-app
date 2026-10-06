@@ -46,7 +46,6 @@ CONTEXT = {
         },
         "daily_counts": [{"date": "2026-08-18", "count": 3}],
     },
-    "previous_report_summary": "Yesterday you were well recovered.",
 }
 
 READY_STATUS = TrainingStatus(
@@ -111,7 +110,6 @@ def test_everything_included_by_default():
     assert "Treffling" in text
     assert "Training" in text
     assert "resting_hr" in text
-    assert "well recovered" in text
 
 
 def test_the_last_weigh_in_rides_along_with_the_health_section():
@@ -127,7 +125,6 @@ def test_the_last_weigh_in_rides_along_with_the_health_section():
 def test_each_section_can_be_switched_off():
     assert "RUNNING" not in prompt(exercises=False)
     assert "Treffling" not in prompt(matches=False)
-    assert "well recovered" not in prompt(report=False)
     # The only place the event title appears is the calendar section.
     assert "2026-08-20T19:00" not in prompt(events=False)
     assert "0.5 L beer" not in prompt(alcohol=False)

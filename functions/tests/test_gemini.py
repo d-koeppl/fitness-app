@@ -264,7 +264,7 @@ def test_the_context_reads_its_windows_from_the_store(store, status):
     [match] = context["recent_matches"]
     assert (match["our_score"], match["opponent_score"], match["outcome"]) == (2, 1, "W")
     assert [event["title"] for event in context["upcoming_events"]] == ["Training"]
-    assert context["previous_report_summary"] is None
+    assert "previous_report_summary" not in context
     assert match["opponent_standing"] is None
     assert context["league"] is None
 
