@@ -26,6 +26,7 @@ export 'package:fitness_api/src/model/calendar_event_out.dart';
 export 'package:fitness_api/src/model/chat_message_out.dart';
 export 'package:fitness_api/src/model/chat_request.dart';
 export 'package:fitness_api/src/model/chat_response.dart';
+export 'package:fitness_api/src/model/check_in_in.dart';
 export 'package:fitness_api/src/model/coach_lookback_days.dart';
 export 'package:fitness_api/src/model/coach_usage_out.dart';
 export 'package:fitness_api/src/model/conversation_detail_out.dart';

@@ -10,6 +10,7 @@ import '../../data/actions.dart';
 import '../../data/dashboard.dart';
 import '../../domain/format.dart';
 import '../../domain/key_metrics.dart';
+import '../sheets/check_in_dialog.dart';
 import '../sheets/detail_sheet.dart';
 import '../sheets/drink_detail.dart';
 import '../sheets/metric_detail.dart';
@@ -131,7 +132,7 @@ class TodayTab extends ConsumerWidget {
         SizedBox(
           height: 48,
           child: FilledButton.tonalIcon(
-            onPressed: newReport.phase == null ? ref.read(newReportProvider.notifier).run : null,
+            onPressed: newReport.phase == null ? () => _newReport(context, ref) : null,
             icon: newReport.phase == null
                 ? const Icon(Icons.add, size: 20)
                 : const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2)),
@@ -162,6 +163,13 @@ class TodayTab extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// New report asks how the user feels first; backing out of that makes no
+/// report at all.
+Future<void> _newReport(BuildContext context, WidgetRef ref) async {
+  final checkIn = await askCheckIn(context);
+  if (checkIn != null) await ref.read(newReportProvider.notifier).run(checkIn: checkIn);
 }
 
 class _MissingMatchNotice extends StatelessWidget {

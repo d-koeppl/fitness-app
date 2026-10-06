@@ -25,6 +25,7 @@ lib/src/model/calendar_event_out.dart
 lib/src/model/chat_message_out.dart
 lib/src/model/chat_request.dart
 lib/src/model/chat_response.dart
+lib/src/model/check_in_in.dart
 lib/src/model/coach_lookback_days.dart
 lib/src/model/coach_usage_out.dart
 lib/src/model/conversation_detail_out.dart

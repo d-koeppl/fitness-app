@@ -98,6 +98,17 @@ void main() {
     await pumpDashboard(tester, api);
 
     await tester.tap(find.text('New report'));
+    await tester.pumpAndSettle();
+    // The popup comes first; nothing is sent until it is answered.
+    expect(find.text('How do you feel today?'), findsOneWidget);
+    expect(sent.where((r) => r.method == 'POST'), isEmpty);
+    final save = find.widgetWithText(FilledButton, 'Save and create report');
+    expect(tester.widget<FilledButton>(save).onPressed, isNull);
+    await tester.tap(find.text('Having a cold'));
+    await tester.tap(find.text('4'));
+    await tester.pump();
+    expect(find.text('HOW STRONG?  STRONG'), findsOneWidget);
+    await tester.tap(save);
     await settleRequests(tester);
     expect(find.text('Syncing…'), findsOneWidget);
 
@@ -117,6 +128,45 @@ void main() {
         if (r.method == 'POST') r.path,
     ];
     expect(posts, ['/sync', '/reports/generate']);
+    expect(sent.firstWhere((r) => r.path == '/reports/generate').body, {'feeling': 'cold', 'strength': 4});
+  });
+
+  testWidgets('a feeling of your own needs words before it can be saved', (tester) async {
+    final sent = <Sent>[];
+    await pumpDashboard(tester, fakeApi(fixtures(), sent: sent));
+
+    await tester.tap(find.text('New report'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Other'));
+    await tester.tap(find.descendant(of: find.byType(Dialog), matching: find.text('2')));
+    await tester.pump();
+    final save = find.widgetWithText(FilledButton, 'Save and create report');
+    expect(tester.widget<FilledButton>(save).onPressed, isNull);
+
+    await tester.enterText(find.byType(TextField), '  jet lagged ');
+    await tester.pump();
+    await tester.tap(save);
+    await settleRequests(tester);
+
+    expect(sent.firstWhere((r) => r.path == '/reports/generate').body, {
+      'feeling': 'other',
+      'strength': 2,
+      'note': 'jet lagged',
+    });
+  });
+
+  testWidgets('cancelling the check-in makes no report', (tester) async {
+    final sent = <Sent>[];
+    await pumpDashboard(tester, fakeApi(fixtures(), sent: sent));
+
+    await tester.tap(find.text('New report'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('How do you feel today?'), findsNothing);
+    expect(find.text('New report'), findsOneWidget);
+    expect(sent.where((r) => r.method == 'POST'), isEmpty);
   });
 
   testWidgets('a tile opens its metric sheet, with every day in the list', (tester) async {

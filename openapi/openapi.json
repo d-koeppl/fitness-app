@@ -283,6 +283,52 @@
         "title": "ChatResponse",
         "type": "object"
       },
+      "CheckInIn": {
+        "description": "How the user says they feel today, sent with New report. It is read\nby the one report it comes with and stored nowhere.",
+        "properties": {
+          "feeling": {
+            "enum": [
+              "energised",
+              "good",
+              "okay",
+              "tired",
+              "stressed",
+              "sore",
+              "ill",
+              "cold",
+              "other"
+            ],
+            "title": "Feeling",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The user's own words, required for `other`.",
+            "title": "Note"
+          },
+          "strength": {
+            "description": "How strong the feeling is, 1 (barely) to 5 (very strong).",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Strength",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "feeling",
+          "strength"
+        ],
+        "title": "CheckInIn",
+        "type": "object"
+      },
       "CoachLookbackDays": {
         "description": "How far back the coach's health, workout and match data reaches, in days.",
         "enum": [
@@ -3230,8 +3276,25 @@
     },
     "/reports/generate": {
       "post": {
-        "description": "A report on the data already stored, with no sync of its own. The\napp's **New report** calls POST /sync first, as a separate request, so\nthe button can show \"Syncing\u2026\" and then \"Analyzing\u2026\" (ADR-027).\nSynchronous (the caller is already watching a loading state) and not\ndebounced \u2014 a deliberate tap always gets a fresh analysis. No push\neither: the user is already looking at the screen that shows it.\n\nUndebounced does not mean unbounded: every tap spends one of the day's\nGemini requests, and run_analysis refuses once they are gone (ADR-013).",
+        "description": "A report on the data already stored, with no sync of its own. The\napp's **New report** calls POST /sync first, as a separate request, so\nthe button can show \"Syncing\u2026\" and then \"Analyzing\u2026\" (ADR-027).\nSynchronous (the caller is already watching a loading state) and not\ndebounced \u2014 a deliberate tap always gets a fresh analysis. No push\neither: the user is already looking at the screen that shows it.\n\nThe optional body is the check-in the app asks for first (how the user\nfeels, 1-5): it goes into this report's prompt and is stored nowhere.\n\nUndebounced does not mean unbounded: every tap spends one of the day's\nGemini requests, and run_analysis refuses once they are gone (ADR-013).",
         "operationId": "generateReport",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/CheckInIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Check In"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "content": {
@@ -3242,6 +3305,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "security": [

@@ -350,7 +350,7 @@ def test_a_run_stores_the_report_with_the_model_that_answered(store, answered):
 
     stored = store.latest_report()
     assert stored.id == report.id
-    assert (stored.trigger, stored.model, stored.prompt_version) == ("manual", "gemini-3.8-flash", "v6")
+    assert (stored.trigger, stored.model, stored.prompt_version) == ("manual", "gemini-3.8-flash", "v7")
     assert stored.summary_md == "## Rested"
     assert stored.insights == {"readiness": "high"}
     assert stored.tokens_used == 1234
@@ -486,3 +486,14 @@ def test_a_spent_budget_is_not_retried_on_the_fallback(store, answered, monkeypa
 
     with pytest.raises(gemini_usage.GeminiQuotaExceeded):
         gemini.run_daily_fallback(store, last_try=True)
+
+
+def test_the_check_in_reaches_the_prompt_only_when_given(store):
+    from api.schemas.reports import CheckInIn
+
+    plain = gemini.build_context(store)
+    assert "check_in" not in plain
+
+    context = gemini.build_context(store, check_in=CheckInIn(feeling="other", strength=2, note="jet lagged"))
+    assert context["check_in"] == {"feeling": "other", "strength_1_to_5": 2, "note": "jet lagged"}
+    assert "check_in" in gemini.build_prompt(context)

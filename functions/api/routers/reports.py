@@ -7,7 +7,7 @@ from requests import HTTPError
 
 from api.analysis.gemini import run_analysis
 from api.ingest.refresh import refresh_google_sources
-from api.schemas.reports import AiReportOut, RefreshReportOut
+from api.schemas.reports import AiReportOut, CheckInIn, RefreshReportOut
 from api.services import gemini_usage
 from api.services.gemini_usage import GeminiQuotaExceeded
 from api.services.reports import latest_report
@@ -25,10 +25,10 @@ def get_latest_report(store: FirestoreStore = Depends(get_store)) -> AiReport:
     return report
 
 
-def _analyse(store: FirestoreStore, trigger: str) -> AiReport:
+def _analyse(store: FirestoreStore, trigger: str, check_in: CheckInIn | None = None) -> AiReport:
     """run_analysis, with its failures turned into the status the app shows."""
     try:
-        return run_analysis(store, trigger)
+        return run_analysis(store, trigger, check_in=check_in)
     except GeminiQuotaExceeded as exc:
         # Before the RuntimeError branch below — this one is a subclass, and
         # "the day's budget is gone" is a 429, not a server fault.
@@ -40,7 +40,9 @@ def _analyse(store: FirestoreStore, trigger: str) -> AiReport:
 
 
 @router.post("/generate", response_model=AiReportOut)
-def generate_report(store: FirestoreStore = Depends(get_store)) -> AiReport:
+def generate_report(
+    check_in: CheckInIn | None = None, store: FirestoreStore = Depends(get_store)
+) -> AiReport:
     """A report on the data already stored, with no sync of its own. The
     app's **New report** calls POST /sync first, as a separate request, so
     the button can show "Syncing…" and then "Analyzing…" (ADR-027).
@@ -48,9 +50,12 @@ def generate_report(store: FirestoreStore = Depends(get_store)) -> AiReport:
     debounced — a deliberate tap always gets a fresh analysis. No push
     either: the user is already looking at the screen that shows it.
 
+    The optional body is the check-in the app asks for first (how the user
+    feels, 1-5): it goes into this report's prompt and is stored nowhere.
+
     Undebounced does not mean unbounded: every tap spends one of the day's
     Gemini requests, and run_analysis refuses once they are gone (ADR-013)."""
-    return _analyse(store, "manual")
+    return _analyse(store, "manual", check_in)
 
 
 @router.post("/refresh", response_model=RefreshReportOut)
