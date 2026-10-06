@@ -1,9 +1,8 @@
 """api/analysis/gemini.py — the Gemini report pipeline.
 
 On trigger: assemble a compact context window (recent daily health,
-upcoming calendar events, the latest matches, the league table and the
-previous report for continuity), send it to Gemini with a versioned prompt, parse a structured
-JSON response, and store the report.
+upcoming calendar events, the latest matches and the league table), send it to Gemini with a versioned
+prompt, parse a structured JSON response, and store the report.
 
 Ported from fitness-dashboard with the prompt unchanged, so a report
 generated here is comparable with one generated there (phase 5 of the
@@ -356,8 +355,6 @@ def build_context(store: FirestoreStore, *, lookback_days: int | None = None) ->
 
     exercise_sessions = sessions_since(store, today - timedelta(days=exercise_days))
 
-    previous_report = store.latest_report()
-
     # One computation, two views: the maths always runs over the full history
     # (get_training_status only trims what it returns), so `days` costs
     # nothing but the length of the series handed on.
@@ -375,7 +372,6 @@ def build_context(store: FirestoreStore, *, lookback_days: int | None = None) ->
         "upcoming_events": _serialize_events(event_rows),
         "recent_matches": _serialize_matches(match_rows, match_standings(store, match_rows)),
         "league": _serialize_league(store.league_table(), store),
-        "previous_report_summary": previous_report.summary_md if previous_report else None,
     }
 
 
@@ -432,8 +428,7 @@ Respond with ONLY a JSON object (no markdown fences) matching this shape:
 {{
   "summary_md": "<a few short paragraphs in Markdown: how they're trending, \
 anything notable in sleep/HR/HRV/steps, how upcoming matches/events line up \
-with recovery, and 1-3 concrete recommendations. Reference the previous \
-report's summary if given, for continuity, without repeating it verbatim.>",
+with recovery, and 1-3 concrete recommendations.>",
   "insights": {{
     "readiness": "<one of: high, moderate, low — your own call for today, \
 informed by readiness_score and the training load, not a restatement of \
