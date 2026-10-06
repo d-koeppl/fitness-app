@@ -866,7 +866,7 @@ def test_generate_returns_the_report_it_stored(client, db, monkeypatch):
     import api.routers.reports as reports
     from api.store import rows
 
-    def fake_run_analysis(store, trigger: str) -> rows.AiReport:
+    def fake_run_analysis(store, trigger: str, check_in=None) -> rows.AiReport:
         report = rows.AiReport(
             id=store.next_ids("reports")[0],
             created_at=NOW,
@@ -886,6 +886,36 @@ def test_generate_returns_the_report_it_stored(client, db, monkeypatch):
     assert client.get("/reports/latest").json()["id"] == body["id"]
 
 
+def test_generate_passes_the_check_in_to_the_analysis(client, db, monkeypatch):
+    import api.routers.reports as reports
+    from api.store import rows
+
+    seen = []
+
+    def fake_run_analysis(store, trigger: str, check_in=None) -> rows.AiReport:
+        seen.append(check_in)
+        return rows.AiReport(
+            id=1, created_at=NOW, trigger=trigger, model="m", prompt_version="v7", summary_md="x", insights={}
+        )
+
+    monkeypatch.setattr(reports, "run_analysis", fake_run_analysis)
+
+    assert client.post("/reports/generate", json={"feeling": "cold", "strength": 4}).status_code == 200
+    assert client.post("/reports/generate").status_code == 200
+    assert [c and (c.feeling, c.strength) for c in seen] == [("cold", 4), None]
+    # A strength off the 1-5 scale, or a feeling the app does not offer, is refused.
+    assert client.post("/reports/generate", json={"feeling": "cold", "strength": 6}).status_code == 422
+    assert client.post("/reports/generate", json={"feeling": "angry", "strength": 3}).status_code == 422
+    # `other` is the user's own words: it needs them, and they are trimmed.
+    assert client.post("/reports/generate", json={"feeling": "other", "strength": 3}).status_code == 422
+    blank = {"feeling": "other", "strength": 3, "note": "  "}
+    assert client.post("/reports/generate", json=blank).status_code == 422
+    assert client.post(
+        "/reports/generate", json={"feeling": "other", "strength": 2, "note": " jet lagged "}
+    ).status_code == 200
+    assert (seen[-1].feeling, seen[-1].note) == ("other", "jet lagged")
+
+
 def test_generate_reports_a_spent_budget_as_429_not_500(client, monkeypatch):
     """GeminiQuotaExceeded subclasses RuntimeError, and the RuntimeError
     branch returns 500 — so the order of the two except clauses is the
@@ -893,7 +923,7 @@ def test_generate_reports_a_spent_budget_as_429_not_500(client, monkeypatch):
     import api.routers.reports as reports
     from api.services.gemini_usage import GeminiQuotaExceeded
 
-    def boom(_store, _trigger):
+    def boom(_store, _trigger, check_in=None):
         raise GeminiQuotaExceeded("All 6 of today's Gemini requests are spent")
 
     monkeypatch.setattr(reports, "run_analysis", boom)
@@ -919,7 +949,7 @@ def test_refresh_endpoint_pulls_the_google_sources_then_reports(client, db, monk
         order.append("sync")
         return {"health": "ok", "heart_rate": "ok", "calendar": "failed: grant revoked"}
 
-    def fake_run_analysis(_store, trigger: str) -> rows.AiReport:
+    def fake_run_analysis(_store, trigger: str, check_in=None) -> rows.AiReport:
         order.append(trigger)
         return rows.AiReport(
             id=1,

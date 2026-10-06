@@ -10,6 +10,8 @@ import 'package:fitness_api/src/deserialize.dart';
 import 'package:dio/dio.dart';
 
 import 'package:fitness_api/src/model/ai_report_out.dart';
+import 'package:fitness_api/src/model/check_in_in.dart';
+import 'package:fitness_api/src/model/http_validation_error.dart';
 import 'package:fitness_api/src/model/refresh_report_out.dart';
 
 class ReportsApi {
@@ -18,9 +20,10 @@ class ReportsApi {
   const ReportsApi(this._dio);
 
   /// Generate Report
-  /// A report on the data already stored, with no sync of its own. The app&#39;s **New report** calls POST /sync first, as a separate request, so the button can show \&quot;Syncing…\&quot; and then \&quot;Analyzing…\&quot; (ADR-027). Synchronous (the caller is already watching a loading state) and not debounced — a deliberate tap always gets a fresh analysis. No push either: the user is already looking at the screen that shows it.  Undebounced does not mean unbounded: every tap spends one of the day&#39;s Gemini requests, and run_analysis refuses once they are gone (ADR-013).
+  /// A report on the data already stored, with no sync of its own. The app&#39;s **New report** calls POST /sync first, as a separate request, so the button can show \&quot;Syncing…\&quot; and then \&quot;Analyzing…\&quot; (ADR-027). Synchronous (the caller is already watching a loading state) and not debounced — a deliberate tap always gets a fresh analysis. No push either: the user is already looking at the screen that shows it.  The optional body is the check-in the app asks for first (how the user feels, 1-5): it goes into this report&#39;s prompt and is stored nowhere.  Undebounced does not mean unbounded: every tap spends one of the day&#39;s Gemini requests, and run_analysis refuses once they are gone (ADR-013).
   ///
   /// Parameters:
+  /// * [checkInIn]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -31,6 +34,7 @@ class ReportsApi {
   /// Returns a [Future] containing a [Response] with a [AiReportOut] as data
   /// Throws [DioException] if API call or serialization fails
   Future<Response<AiReportOut>> generateReport({
+    CheckInIn? checkInIn,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -48,11 +52,26 @@ class ReportsApi {
         ],
         ...?extra,
       },
+      contentType: 'application/json',
       validateStatus: validateStatus,
     );
 
+    dynamic _bodyData;
+
+    try {
+      _bodyData = jsonEncode(checkInIn);
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _options.compose(_dio.options, _path),
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
     final _response = await _dio.request<Object>(
       _path,
+      data: _bodyData,
       options: _options,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,

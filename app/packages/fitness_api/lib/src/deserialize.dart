@@ -3,6 +3,7 @@ import 'package:fitness_api/src/model/calendar_event_out.dart';
 import 'package:fitness_api/src/model/chat_message_out.dart';
 import 'package:fitness_api/src/model/chat_request.dart';
 import 'package:fitness_api/src/model/chat_response.dart';
+import 'package:fitness_api/src/model/check_in_in.dart';
 import 'package:fitness_api/src/model/coach_usage_out.dart';
 import 'package:fitness_api/src/model/conversation_detail_out.dart';
 import 'package:fitness_api/src/model/conversation_out.dart';
@@ -76,6 +77,8 @@ ReturnType deserialize<ReturnType, BaseType>(
       return ChatRequest.fromJson(value as Map<String, dynamic>) as ReturnType;
     case 'ChatResponse':
       return ChatResponse.fromJson(value as Map<String, dynamic>) as ReturnType;
+    case 'CheckInIn':
+      return CheckInIn.fromJson(value as Map<String, dynamic>) as ReturnType;
     case 'CoachLookbackDays':
     case 'CoachUsageOut':
       return CoachUsageOut.fromJson(value as Map<String, dynamic>)

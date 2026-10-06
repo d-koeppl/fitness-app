@@ -82,12 +82,13 @@ class NewReportController extends Notifier<NewReportState> {
   /// **New report**, the one report button (ADR-027): pull Google Health
   /// and the calendar fresh — a long night's sleep lands late — and then
   /// report on it. Two requests rather than one, so the button can say
-  /// which it is waiting on.
+  /// which it is waiting on. [checkIn], how the user said they feel, goes
+  /// with the second one and into that report's prompt.
   ///
   /// The dashboard is re-read afterwards even if the report failed: the
   /// sync has changed the tiles either way, and on success the beer counter
   /// shows that the day's first report took it (ADR-019).
-  Future<void> run() async {
+  Future<void> run({CheckInIn? checkIn}) async {
     if (state.phase != null) return;
     state = const NewReportState(phase: ReportPhase.syncing);
     await ref.read(syncProvider.notifier).pullGoogle();
@@ -95,7 +96,7 @@ class NewReportController extends Notifier<NewReportState> {
     String? error;
     final dashboard = ref.read(dashboardProvider.notifier);
     try {
-      final response = await ref.read(apiProvider).getReportsApi().generateReport(extra: slowRequest);
+      final response = await ref.read(apiProvider).getReportsApi().generateReport(checkInIn: checkIn, extra: slowRequest);
       dashboard.setReport(response.data!);
     } catch (e) {
       error = describeError(e);

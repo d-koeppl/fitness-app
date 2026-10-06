@@ -24,6 +24,7 @@ from api.config import settings
 from api.integrations import gemini_models
 from api.integrations.gemini_models import api_key_header
 from api.integrations.google_health import local_tz
+from api.schemas.reports import CheckInIn
 from api.services import drinks, gemini_usage
 from api.services.exercises import sessions_since
 from api.services.health import Measurement, latest_measurements
@@ -54,7 +55,7 @@ GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model
 # only number here nothing measured for them (ADR-019).
 # v6 (2026-09): the context gained league — the table, and each match and
 # fixture with the opponent's standing next to ours.
-PROMPT_VERSION = "v6"
+PROMPT_VERSION = "v7"
 
 CONTEXT_HEALTH_DAYS_BACK = 14
 CONTEXT_CALENDAR_DAYS_AHEAD = 14
@@ -330,7 +331,9 @@ def _serialize_training_series(status) -> list[dict] | None:
     ]
 
 
-def build_context(store: FirestoreStore, *, lookback_days: int | None = None) -> dict:
+def build_context(
+    store: FirestoreStore, *, lookback_days: int | None = None, check_in: CheckInIn | None = None
+) -> dict:
     """Assemble the JSON context. `lookback_days`, when given (the coach's
     History selector), widens the health / exercise / match windows to that
     many days back; the daily report leaves it None and gets the fixed
@@ -364,7 +367,7 @@ def build_context(store: FirestoreStore, *, lookback_days: int | None = None) ->
     series_days = lookback_days or CONTEXT_TRAINING_SERIES_DAYS
     training = get_training_status(store, days=series_days)
 
-    return {
+    context = {
         "today": today.isoformat(),
         "recent_daily_health": _serialize_health(health_rows),
         "latest_measurements": _serialize_latest_measurements(latest_measurements(store), today),
@@ -377,6 +380,11 @@ def build_context(store: FirestoreStore, *, lookback_days: int | None = None) ->
         "league": _serialize_league(store.league_table(), store),
         "previous_report_summary": previous_report.summary_md if previous_report else None,
     }
+    if check_in:
+        context["check_in"] = {"feeling": check_in.feeling, "strength_1_to_5": check_in.strength}
+        if check_in.note:
+            context["check_in"]["note"] = check_in.note
+    return context
 
 
 PROMPT_TEMPLATE = """You are a personal fitness coach analysing data for one person. \
@@ -423,7 +431,13 @@ stronger, level or weaker). Use it for the physical side only: a stronger \
 opponent usually means more defending and more high-intensity running, so \
 say how to arrive fresh for that one; read a result in its light (a loss \
 to a stronger side is not a fitness warning on its own). No tactics, no \
-predictions of the score.
+predictions of the score. `check_in`, when present, is how the user says \
+they feel today: a `feeling`, or their own words in `note` when it is \
+`other`, and how strong it is (`strength_1_to_5`). It is the one thing here \
+that no watch can measure, so weigh it against the numbers: a feeling the \
+data does not show (fine after a poor night, or ill with a normal HRV) is \
+worth a sentence, and `ill` or `cold` at strength 3 or more should shape \
+the recommendations (rest, no hard sessions) whatever the load model says.
 
 Data:
 {context_json}
@@ -608,7 +622,11 @@ def chat_completion(store: FirestoreStore, system: str, messages: list[dict]) ->
 
 
 def run_analysis(
-    store: FirestoreStore, trigger: str, max_retries: int = 2, only: list[str] | None = None
+    store: FirestoreStore,
+    trigger: str,
+    max_retries: int = 2,
+    only: list[str] | None = None,
+    check_in: CheckInIn | None = None,
 ) -> AiReport:
     started = time.perf_counter()
     # The report may spend the whole day's budget — it is what the reserve
@@ -622,7 +640,7 @@ def run_analysis(
     # drinks again rather than zeroing a night still in progress (ADR-019).
     first_today = not report_exists_today(store)
 
-    context = build_context(store)
+    context = build_context(store, check_in=check_in)
     prompt = build_prompt(context)
 
     gemini_started = time.perf_counter()
