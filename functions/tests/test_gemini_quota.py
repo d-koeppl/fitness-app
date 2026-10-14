@@ -269,3 +269,54 @@ def test_a_refused_attempt_logs_no_usage(monkeypatch, gemini_key, caplog):
     assert usage_lines == [
         "Gemini usage: purpose=report model=fallback-model prompt=0 cached=0 output=0 thinking=0 total=0"
     ]
+
+
+def bad_body(text: str | None, finish: str = "STOP") -> dict:
+    parts = [{"text": text}] if text is not None else []
+    return {"candidates": [{"content": {"parts": parts}, "finishReason": finish}]}
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        bad_body('{"summary_md": "cut off'),
+        bad_body("not json at all"),
+        bad_body("[1, 2]"),
+        bad_body(None, finish="SAFETY"),
+        {"candidates": []},
+    ],
+)
+def test_an_unreadable_reply_is_retried_once_then_succeeds(monkeypatch, gemini_key, no_sleep, body):
+    """Seen in production (2026-10-13): Gemini answered, the reply could not
+    be read, and the unhandled error became a bare 500 for a report that the
+    next attempt would have produced."""
+    asked = stub_post(monkeypatch, [FakeResponse(200, body), FakeResponse(200, OK_BODY)])
+
+    parsed, _tokens, _model = gemini.call_gemini(None, "prompt")
+
+    assert parsed == {"summary_md": "hi"}
+    assert asked == ["primary-model", "primary-model"]
+
+
+def test_a_persistent_bad_reply_is_an_http_error_not_a_crash(monkeypatch, gemini_key, no_sleep, caplog):
+    """HTTPError is what the router turns into a 502 with a sentence, and
+    what the evening fallback retries on the other model."""
+    asked = stub_post(monkeypatch, [FakeResponse(200, bad_body("nope"))] * 2)
+
+    caplog.set_level("WARNING", logger="api.analysis.gemini")
+    with pytest.raises(gemini.GeminiBadReply) as err:
+        gemini.call_gemini(None, "prompt")
+
+    assert isinstance(err.value, requests.HTTPError)
+    assert asked == ["primary-model"] * 2
+    # The raw text is logged, so the next one is diagnosable.
+    assert "'nope'" in caplog.text
+
+
+def test_no_retries_means_no_second_try_on_an_unreadable_reply(monkeypatch, gemini_key, no_sleep):
+    asked = stub_post(monkeypatch, [FakeResponse(200, bad_body("nope"))])
+
+    with pytest.raises(gemini.GeminiBadReply):
+        gemini.call_gemini(None, "prompt", max_retries=0)
+
+    assert asked == ["primary-model"]

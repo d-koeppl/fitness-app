@@ -576,23 +576,74 @@ def _post_gemini(
 def call_gemini(
     store: FirestoreStore, prompt: str, max_retries: int = 2, only: list[str] | None = None
 ) -> tuple[dict, int | None, str]:
-    data, model = _post_gemini(
-        store,
-        {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"responseMimeType": "application/json"},
-        },
-        max_retries=max_retries,
-        only=only,
-    )
+    # A reply that cannot be read is retried once, like a 503 — it is the
+    # model's variance, not a fault in the request — unless the caller asked
+    # for no retries. Each attempt is a request against the day (ADR-013).
+    attempts = 2 if max_retries else 1
+    for attempt in range(1, attempts + 1):
+        data, model = _post_gemini(
+            store,
+            {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"responseMimeType": "application/json"},
+            },
+            max_retries=max_retries,
+            only=only,
+        )
+        try:
+            parsed = _read_reply(data)
+        except GeminiBadReply as exc:
+            logger.warning(
+                "Gemini reply unreadable on %s (attempt %d/%d): %s — finishReason=%s, text=%.500r",
+                model,
+                attempt,
+                attempts,
+                exc,
+                _finish_reason(data),
+                _reply_text(data),
+            )
+            if attempt == attempts:
+                raise
+            continue
+        tokens_used = data.get("usageMetadata", {}).get("totalTokenCount")
+        return parsed, tokens_used, model
+    raise AssertionError("unreachable")  # pragma: no cover
 
-    text = data["candidates"][0]["content"]["parts"][0]["text"]
+
+class GeminiBadReply(requests.HTTPError):
+    """Gemini answered 200 but not with a JSON object we can read. An
+    HTTPError so the report router answers 502 (a bad upstream) and the
+    evening fallback's RequestException branch still gets its second try."""
+
+
+def _reply_text(data: dict) -> str | None:
+    try:
+        return data["candidates"][0]["content"]["parts"][0]["text"]
+    except (KeyError, IndexError, TypeError):
+        return None
+
+
+def _finish_reason(data: dict) -> str | None:
+    try:
+        return data["candidates"][0].get("finishReason")
+    except (KeyError, IndexError, TypeError, AttributeError):
+        return None
+
+
+def _read_reply(data: dict) -> dict:
+    text = _reply_text(data)
+    if text is None:
+        raise GeminiBadReply(f"Gemini returned no text (finishReason={_finish_reason(data)})")
     # responseMimeType=json usually returns exactly one JSON value, but
     # occasionally trails extra text after it — parse just the first
     # value rather than requiring the whole string to be valid JSON.
-    parsed, _end = json.JSONDecoder().raw_decode(text.strip())
-    tokens_used = data.get("usageMetadata", {}).get("totalTokenCount")
-    return parsed, tokens_used, model
+    try:
+        parsed, _end = json.JSONDecoder().raw_decode(text.strip())
+    except ValueError as exc:
+        raise GeminiBadReply(f"Gemini returned text that is not JSON: {exc}") from exc
+    if not isinstance(parsed, dict):
+        raise GeminiBadReply(f"Gemini returned JSON that is not an object ({type(parsed).__name__})")
+    return parsed
 
 
 def chat_completion(store: FirestoreStore, system: str, messages: list[dict]) -> str:
