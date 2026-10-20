@@ -8,11 +8,20 @@ Android and in the browser, with iOS planned, from one Flutter codebase and
 a Firebase backend.
 
 It is single-user by design: every API call needs a Google sign-in whose
-email is on an allowlist. It replaces
-[fitness-dashboard](https://github.com/d-koeppl/fitness-dashboard), a
-Next.js + FastAPI + Postgres stack on a home server. The port is nearly done;
-the old repo stays as history and as the reference the new numbers are
-checked against until the cut-over.
+email is on an allowlist. It replaces fitness-dashboard, a Next.js +
+FastAPI + Postgres stack on a home server, which stays private as history
+and as the reference the new numbers are checked against until the
+cut-over. Both were built with Claude Code; see
+[How it was developed](#how-it-was-developed).
+
+<p>
+  <img src="docs/screenshots/today.png" alt="Today tab: six metric tiles, a beer counter and the latest report" width="260">
+  <img src="docs/screenshots/fitness.png" alt="Fitness tab: training status with the Fitness and Fatigue curves over daily load" width="260">
+  <img src="docs/screenshots/health.png" alt="Health tab: resting heart rate over 7 days against its normal range, the other metrics listed below" width="260">
+</p>
+
+<sub>Made-up demo data, taken with the repo's own
+[run-app skill](.claude/skills/run-app/SKILL.md) on the emulators.</sub>
 
 ## What the app does
 
@@ -64,6 +73,34 @@ time ([`jobs.py`](functions/api/jobs.py)):
    device through FCM ([ADR-030](docs/adr/030-fcm-report-push.md)). If
    Gemini fails, it tries again at 19:30 and may use the fallback model
    once ([ADR-034](docs/adr/034-evening-report-last-try.md)).
+
+## How it was developed
+
+The app is developed with AI coding agents, mostly Claude Code: of the
+first 84 commits (24 September to 14 October 2026), 49 were co-written
+with it. The agent writes most of the code; I set the direction, make the
+decisions and review every change. The repository is set up so that an
+agent's mistakes are caught before they reach `main`:
+
+- **[CLAUDE.md](CLAUDE.md)** is the agent's working brief: where code
+  belongs, what must never be edited by hand, which checks to run, and
+  the traps already found (a Firestore query that needs a composite index
+  passes every emulator test and fails in production).
+- **Every decision is written down** as an ADR ([docs/adr/](docs/adr/)),
+  so the reasons survive between sessions and a later change can be
+  checked against them.
+- **Every change goes through a pull request and CI**: lint and tests for
+  the functions (on the Firestore emulator) and the app, a check that the
+  OpenAPI snapshot and the generated Dart client match the server, a web
+  build, and an Android build when its inputs change.
+- **The port is checked against the original**: `tools/migrate/`
+  snapshots every endpoint of the old and the new API on the same data
+  and fails on any difference ([README](tools/migrate/README.md)).
+- **Cloud sessions can run the app themselves**: a session-start hook
+  installs the pinned toolchain, and the
+  [run-app skill](.claude/skills/run-app/SKILL.md) starts the emulators
+  with made-up data and screenshots the real UI, so a change is checked
+  on screen as well as in tests.
 
 ## How it is built
 
@@ -119,7 +156,7 @@ time ([`jobs.py`](functions/api/jobs.py)):
 | `tool/generate_api_client.sh` | Regenerates `fitness_api` (needs Java and Node) |
 | `tools/migrate/` | Postgres → Firestore migration and old-vs-new API diffing ([README](tools/migrate/README.md)) |
 | `firestore.rules` | Denies all client access |
-| `docs/adr/` | Architecture decision records, numbered on from fitness-dashboard's (028 onwards) |
+| `docs/adr/` | Architecture decision records, numbered on from fitness-dashboard's (028 onwards; [index](docs/adr/README.md)) |
 
 ## Getting started
 
