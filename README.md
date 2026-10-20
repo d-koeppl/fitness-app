@@ -216,3 +216,7 @@ route, single-field Firestore indexes only, and colours from the palette
 rather than literals. Record significant decisions as a new ADR in
 [`docs/adr/`](docs/adr/). When a decision turns out wrong, add a
 superseding ADR rather than editing the old one.
+
+## License
+
+© 2026 Daniel Köppl. All rights reserved.
