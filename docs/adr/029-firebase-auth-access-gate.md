@@ -1,7 +1,7 @@
 # ADR-029 — Firebase ID tokens and an email allowlist as the access gate
 
 **Status:** Accepted · **Date:** 2026-09-25
-**Supersedes:** in fitness-dashboard, [ADR-006](https://github.com/d-koeppl/fitness-dashboard/blob/main/docs/adr/006-auth-oauth-and-secrets.md)'s access gate (Cloudflare Access in front of an API with no auth of its own). Its token-at-rest encryption for the Google OAuth grants stands.
+**Supersedes:** in fitness-dashboard, ADR-006's access gate (Cloudflare Access in front of an API with no auth of its own). Its token-at-rest encryption for the Google OAuth grants stands.
 
 ## Context
 

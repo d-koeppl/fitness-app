@@ -1,7 +1,7 @@
 # ADR-028 — Route C: a Flutter client on Firebase, no home server
 
 **Status:** Accepted · **Date:** 2026-09-24
-**Supersedes:** in fitness-dashboard, [ADR-001](https://github.com/d-koeppl/fitness-dashboard/blob/main/docs/adr/001-topology.md) (topology), [ADR-002](https://github.com/d-koeppl/fitness-dashboard/blob/main/docs/adr/002-postgres.md) (Postgres), [ADR-004](https://github.com/d-koeppl/fitness-dashboard/blob/main/docs/adr/004-scheduling-and-wake-trigger.md) (APScheduler and the wake trigger), [ADR-007](https://github.com/d-koeppl/fitness-dashboard/blob/main/docs/adr/007-deployment.md) (deployment)
+**Supersedes:** in fitness-dashboard, ADR-001 (topology), ADR-002 (Postgres), ADR-004 (APScheduler and the wake trigger), ADR-007 (deployment)
 
 Numbered on from fitness-dashboard, whose last ADR is 027, so the two
 repos read as one decision history.
@@ -13,7 +13,7 @@ Docker on a Proxmox host at home. Three things pushed against that:
 
 - A native app is the only way to read Health Connect or HealthKit on the
   phone, and the only route to Apple data at all
-  ([PRODUCTIZATION.md](https://github.com/d-koeppl/fitness-dashboard/blob/main/docs/PRODUCTIZATION.md) §3).
+  (fitness-dashboard's `docs/PRODUCTIZATION.md` §3).
 - A native app cannot do Cloudflare Access's browser-cookie login, which
   was the whole access gate (ADR-006).
 - The home server was the one piece that needed looking after.

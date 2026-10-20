@@ -1,7 +1,7 @@
 # ADR-031 — Firestore layout: month buckets for history, one document per record elsewhere
 
 **Status:** Accepted · **Date:** 2026-09-25
-**Amends:** in fitness-dashboard, [ADR-002](https://github.com/d-koeppl/fitness-dashboard/blob/main/docs/adr/002-postgres.md) (where rows live; the keep-the-raw-payload rule stands), [ADR-012](https://github.com/d-koeppl/fitness-dashboard/blob/main/docs/adr/012-exercise-sessions-from-raw.md) and [ADR-020](https://github.com/d-koeppl/fitness-dashboard/blob/main/docs/adr/020-per-session-heart-rate.md) (how sessions and traces are stored)
+**Amends:** in fitness-dashboard, ADR-002 (where rows live; the keep-the-raw-payload rule stands), ADR-012 and ADR-020 (how sessions and traces are stored)
 
 Numbering: ADR-029 is Firebase Auth; ADR-030 is reserved for FCM
 (phase 6), so this one is 031 as the port plan listed it.

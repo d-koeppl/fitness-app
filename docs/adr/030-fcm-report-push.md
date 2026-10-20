@@ -1,7 +1,7 @@
 # ADR-030 — The report push through Firebase Cloud Messaging
 
 **Status:** Accepted · **Date:** 2026-09-25
-**Supersedes:** in fitness-dashboard, [ADR-005](https://github.com/d-koeppl/fitness-dashboard/blob/main/docs/adr/005-web-push.md) (Web Push with VAPID)
+**Supersedes:** in fitness-dashboard, ADR-005 (Web Push with VAPID)
 
 Numbered 030 because the port plan reserved it for FCM (see ADR-031).
 Written in phase 6.
