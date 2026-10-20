@@ -10,11 +10,17 @@ if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
   exit 0
 fi
 
-# Keep these in step with ci.yml.
-FLUTTER_VERSION="3.47.5"
-FIREBASE_TOOLS_VERSION="15.31.0"
-
 REPO="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
+
+# Read from ci.yml, so a bump there reaches the sessions too. A copy here
+# went stale once: pubspec needed a newer Dart and `pub get` failed.
+CI="$REPO/.github/workflows/ci.yml"
+FLUTTER_VERSION="$(sed -n 's/^ *flutter-version: "\([^"]*\)".*/\1/p' "$CI" | head -n 1)"
+FIREBASE_TOOLS_VERSION="$(sed -n 's/.*firebase-tools@\([0-9.]*\).*/\1/p' "$CI" | head -n 1)"
+if [ -z "$FLUTTER_VERSION" ] || [ -z "$FIREBASE_TOOLS_VERSION" ]; then
+  echo "session-start: cannot read the Flutter or firebase-tools version from $CI" >&2
+  exit 1
+fi
 FLUTTER_HOME="$HOME/flutter"
 NODE_HOME="/opt/node22"
 JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-21-openjdk-amd64}"
