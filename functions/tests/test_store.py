@@ -225,6 +225,35 @@ def test_latest_report_and_created_since(store):
     assert not store.report_created_since(T0 + timedelta(hours=3))
 
 
+def test_reports_since_returns_them_oldest_first_with_their_check_in(store):
+    first = _report(1, T0)
+    first.check_in = {"feeling": "tired", "strength": 4}
+    store.put_report(_report(2, T0 + timedelta(hours=2)))
+    store.put_report(first)
+
+    assert [r.id for r in store.reports_since(T0)] == [1, 2]
+    assert [r.id for r in store.reports_since(T0 + timedelta(hours=1))] == [2]
+    assert store.reports_since(T0)[0].check_in == {"feeling": "tired", "strength": 4}
+    assert store.reports_since(T0)[1].check_in is None
+
+
+def test_context_carries_the_check_ins_of_earlier_days(store):
+    from api.analysis.gemini import build_context
+    from api.schemas.reports import CheckInIn
+
+    now = datetime.now(UTC)
+    old = _report(1, now - timedelta(days=3))
+    old.check_in = {"feeling": "ill", "strength": 4, "note": "flu"}
+    outside = _report(2, now - timedelta(days=30))
+    outside.check_in = {"feeling": "good", "strength": 2}
+    store.put_report(old)
+    store.put_report(outside)
+
+    history = build_context(store, check_in=CheckInIn(feeling="okay", strength=2))["recent_check_ins"]
+    assert [(h["days_ago"], h["feeling"], h.get("note")) for h in history] == [(3, "ill", "flu")]
+    assert build_context(store)["recent_check_ins"] == history
+
+
 def test_pending_drinks_are_unclaimed_and_logged_live(store):
     store.add_drinks(2, logged_at=T0)
     store.add_drinks(1, drank_on=date(2026, 8, 20), logged_at=T0)

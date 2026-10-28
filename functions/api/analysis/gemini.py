@@ -330,6 +330,28 @@ def _serialize_training_series(status) -> list[dict] | None:
     ]
 
 
+def _serialize_check_in(check_in: dict) -> dict:
+    out = {"feeling": check_in["feeling"], "strength_1_to_5": check_in["strength"]}
+    if check_in.get("note"):
+        out["note"] = check_in["note"]
+    return out
+
+
+def _serialize_check_in_history(store: FirestoreStore, today: date, days_back: int) -> list[dict]:
+    """The check-ins saved with earlier reports, newest day first. One per
+    local day: when several reports that day had one, the last answer wins."""
+    tz = local_tz()
+    since = datetime(*(today - timedelta(days=days_back)).timetuple()[:3], tzinfo=tz)
+    by_day: dict[date, dict] = {}
+    for report in store.reports_since(since):  # oldest first, so later ones overwrite
+        if report.check_in:
+            by_day[report.created_at.astimezone(tz).date()] = report.check_in
+    return [
+        {"date": day.isoformat(), "days_ago": (today - day).days, **_serialize_check_in(by_day[day])}
+        for day in sorted(by_day, reverse=True)
+    ]
+
+
 def build_context(
     store: FirestoreStore, *, lookback_days: int | None = None, check_in: CheckInIn | None = None
 ) -> dict:
@@ -377,9 +399,14 @@ def build_context(
         "league": _serialize_league(store.league_table(), store),
     }
     if check_in:
-        context["check_in"] = {"feeling": check_in.feeling, "strength_1_to_5": check_in.strength}
-        if check_in.note:
-            context["check_in"]["note"] = check_in.note
+        context["check_in"] = _serialize_check_in(check_in.model_dump())
+    # Earlier days, as far back as the health rows reach. Today's own answer
+    # is `check_in` above, so a stored one from today is left out.
+    history = _serialize_check_in_history(store, today, health_days)
+    if check_in:
+        history = [entry for entry in history if entry["date"] != today.isoformat()]
+    if history:
+        context["recent_check_ins"] = history
     return context
 
 
@@ -427,7 +454,9 @@ stronger, level or weaker). Use it for the physical side only: a stronger \
 opponent usually means more defending and more high-intensity running, so \
 say how to arrive fresh for that one; read a result in its light (a loss \
 to a stronger side is not a fitness warning on its own). No tactics, no \
-predictions of the score. `check_in`, when present, is how the user says \
+predictions of the score. `recent_check_ins`, when present, are the same answers \
+from earlier days (one per day, newest first): read them as a trend next to \
+the health rows of those days, not as today's state. `check_in`, when present, is how the user says \
 they feel today: a `feeling`, or their own words in `note` when it is \
 `other`, and how strong it is (`strength_1_to_5`). It is the one thing here \
 that no watch can measure, so weigh it against the numbers: a feeling the \
@@ -708,6 +737,7 @@ def run_analysis(
         summary_md=parsed.get("summary_md", ""),
         insights=parsed.get("insights", {}),
         tokens_used=tokens_used,
+        check_in=check_in.model_dump(exclude_none=True) if check_in else None,
     )
     # The report and the drinks it counted go in one batch, so a report
     # that fails to save cannot leave the counter reset behind it.
