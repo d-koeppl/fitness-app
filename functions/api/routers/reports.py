@@ -51,7 +51,8 @@ def generate_report(
     either: the user is already looking at the screen that shows it.
 
     The optional body is the check-in the app asks for first (how the user
-    feels, 1-5): it goes into this report's prompt and is stored nowhere.
+    feels, 1-5): it goes into this report's prompt and is saved with the
+    report, so later reports see it among their recent check-ins.
 
     Undebounced does not mean unbounded: every tap spends one of the day's
     Gemini requests, and run_analysis refuses once they are gone (ADR-013)."""

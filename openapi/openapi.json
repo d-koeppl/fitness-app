@@ -284,7 +284,7 @@
         "type": "object"
       },
       "CheckInIn": {
-        "description": "How the user says they feel today, sent with New report. It is read\nby the one report it comes with and stored nowhere.",
+        "description": "How the user says they feel today, sent with New report. It is read\nby the report it comes with and saved on it, so the reports of the next\ndays see it too.",
         "properties": {
           "feeling": {
             "enum": [
@@ -3276,7 +3276,7 @@
     },
     "/reports/generate": {
       "post": {
-        "description": "A report on the data already stored, with no sync of its own. The\napp's **New report** calls POST /sync first, as a separate request, so\nthe button can show \"Syncing\u2026\" and then \"Analyzing\u2026\" (ADR-027).\nSynchronous (the caller is already watching a loading state) and not\ndebounced \u2014 a deliberate tap always gets a fresh analysis. No push\neither: the user is already looking at the screen that shows it.\n\nThe optional body is the check-in the app asks for first (how the user\nfeels, 1-5): it goes into this report's prompt and is stored nowhere.\n\nUndebounced does not mean unbounded: every tap spends one of the day's\nGemini requests, and run_analysis refuses once they are gone (ADR-013).",
+        "description": "A report on the data already stored, with no sync of its own. The\napp's **New report** calls POST /sync first, as a separate request, so\nthe button can show \"Syncing\u2026\" and then \"Analyzing\u2026\" (ADR-027).\nSynchronous (the caller is already watching a loading state) and not\ndebounced \u2014 a deliberate tap always gets a fresh analysis. No push\neither: the user is already looking at the screen that shows it.\n\nThe optional body is the check-in the app asks for first (how the user\nfeels, 1-5): it goes into this report's prompt and is saved with the\nreport, so later reports see it among their recent check-ins.\n\nUndebounced does not mean unbounded: every tap spends one of the day's\nGemini requests, and run_analysis refuses once they are gone (ADR-013).",
         "operationId": "generateReport",
         "requestBody": {
           "content": {

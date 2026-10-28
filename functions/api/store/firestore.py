@@ -266,6 +266,7 @@ def _report_from_doc(doc: dict) -> AiReport:
         period_end=_parse_d(doc.get("period_end")),
         insights=json.loads(doc.get("insights") or "{}"),
         tokens_used=doc.get("tokens_used"),
+        check_in=doc.get("check_in"),
     )
 
 
@@ -731,6 +732,11 @@ class FirestoreStore:
         )
         return any(True for _ in query.stream())
 
+    def reports_since(self, cutoff: datetime) -> list[AiReport]:
+        """Reports created at or after `cutoff`, oldest first."""
+        query = self._db.collection("reports").where(filter=FieldFilter("created_at", ">=", _ts(cutoff)))
+        return sorted((_report_from_doc(s.to_dict()) for s in query.stream()), key=lambda r: r.created_at)
+
     def put_report(self, row: AiReport, claim_drink_ids: Iterable[int] = ()) -> None:
         """Write a report, and claim `claim_drink_ids` for it in the same
         batch — so a report that fails to save cannot leave the beer
@@ -749,6 +755,7 @@ class FirestoreStore:
                 "period_end": _d(row.period_end),
                 "insights": _json(row.insights),
                 "tokens_used": row.tokens_used,
+                "check_in": row.check_in,
             },
         )
         for drink_id in claim_drink_ids:

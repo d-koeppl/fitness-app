@@ -100,6 +100,10 @@ class AiReport:
     period_end: date | None = None
     insights: dict = field(default_factory=dict)
     tokens_used: int | None = None
+    # The check-in the user answered before this report ({"feeling",
+    # "strength", "note"?}); kept so later reports can see how the past days
+    # felt.
+    check_in: dict | None = None
 
 
 @dataclass

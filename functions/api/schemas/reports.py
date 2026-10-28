@@ -34,7 +34,8 @@ CheckInFeeling = Literal["energised", "good", "okay", "tired", "stressed", "sore
 
 class CheckInIn(BaseModel):
     """How the user says they feel today, sent with New report. It is read
-    by the one report it comes with and stored nowhere."""
+    by the report it comes with and saved on it, so the reports of the next
+    days see it too."""
 
     feeling: CheckInFeeling
     strength: int = Field(ge=1, le=5, description="How strong the feeling is, 1 (barely) to 5 (very strong).")
